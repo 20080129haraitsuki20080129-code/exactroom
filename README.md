@@ -46,8 +46,13 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 python -c "import secrets; print('SECRET_KEY=' + secrets.token_urlsafe(48))"   # 出力を .env に貼る
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload        # もしくは python run.py --reload
 ```
+
+> 自作のスクリプトから起動する場合は、必ず `if __name__ == "__main__":` で
+> ガードしてください。判定ワーカーが `spawn` 方式の子プロセスとして起動するため、
+> ガードがないと子プロセスが親スクリプトを再実行してしまいます
+> (`uvicorn app.main:app` や同梱の `run.py` を使う分には問題ありません)。
 
 ブラウザで <http://127.0.0.1:8000/> を開きます。
 

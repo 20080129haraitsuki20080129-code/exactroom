@@ -13,6 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
 COPY static ./static
+COPY scripts ./scripts
 
 # 非 root ユーザで動かす
 RUN useradd --create-home --uid 10001 exactroom \
@@ -23,7 +24,7 @@ USER exactroom
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD python -c "import urllib.request,os,sys; sys.exit(0 if urllib.request.urlopen(f'http://127.0.0.1:{os.getenv(\"PORT\",\"8000\")}/healthz', timeout=4).status==200 else 1)"
+  CMD python -c "import os,sys,urllib.request; url='http://127.0.0.1:'+os.environ.get('PORT','8000')+'/healthz'; sys.exit(0 if urllib.request.urlopen(url, timeout=4).status==200 else 1)"
 
 # シェル形式にして $PORT を展開する (PaaS が動的にポートを渡すため)
 CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT}

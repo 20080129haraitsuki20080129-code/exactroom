@@ -289,7 +289,36 @@ def _certify_nonzero_number(expr, depth: int = 0) -> bool:
         and expr.exp.is_finite is not False
     ):
         return True
-    return _radical_linear_certificate(expr) == NONZERO
+    if _radical_linear_certificate(expr) == NONZERO:
+        return True
+    if depth < 4:
+        # 分数なら「分子 ≠ 0 かつ分母が有限」で 0 でないと言える
+        reduced = _safe(sp.together, expr)
+        if reduced is not None:
+            numer, denom = sp.fraction(reduced)
+            if (
+                denom != S.One
+                and numer != expr
+                and not denom.has(sp.oo, -sp.oo, sp.zoo, sp.nan)
+                and denom.is_finite is not False
+                and _certify_nonzero_number(numer, depth + 1)
+            ):
+                return True
+        # log をまとめると 0 でないことが見えることがある
+        #   3*log(3) - log(8) -> log(27/8) (無理数なので 0 ではない)
+        for transform in (
+            lambda e: sp.logcombine(e, force=False),
+            lambda e: sp.radsimp(e),
+            lambda e: sp.powsimp(e, force=False),
+        ):
+            changed = _safe(transform, expr)
+            if (
+                changed is not None
+                and changed != expr
+                and _certify_nonzero_number(changed, depth + 1)
+            ):
+                return True
+    return False
 
 
 # --------------------------------------------------------------------------

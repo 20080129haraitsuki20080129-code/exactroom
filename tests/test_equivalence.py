@@ -50,6 +50,23 @@ AC_CASES = [
     (r"5!", r"120"),
     (r"\frac{d}{2}", r"0.5d"),
     (r"\tan x", r"\frac{\sin x}{\cos x}"),
+    # 高校数学でよくある形
+    (r"2\sqrt{3}", r"\sqrt{12}"),
+    (r"\frac{3}{\sqrt{3}}", r"\sqrt{3}"),
+    (r"\frac{1}{\sqrt{2}-1}", r"\sqrt{2}+1"),
+    (r"x^3-1", r"(x-1)(x^2+x+1)"),
+    (r"\frac{1}{x}+\frac{1}{y}", r"\frac{x+y}{xy}"),
+    (r"\cos 2x", r"1-2\sin^2 x"),
+    (r"\cos 2x", r"2\cos^2 x-1"),
+    (r"\sin\frac{\pi}{6}", r"\frac{1}{2}"),
+    (r"\log_{2}\frac{1}{8}", r"-3"),
+    (r"\log_{2}8", r"\log_{3}27"),
+    (r"\frac{\ln 8}{\ln 2}", r"3"),
+    (r"\ln 2 + \ln 3", r"\ln 6"),
+    (r"\frac{\pi}{\sqrt{2}}", r"\frac{\pi\sqrt{2}}{2}"),
+    (r"\frac{n(n+1)}{2}", r"\frac{1}{2}n^2+\frac{1}{2}n"),
+    (r"e^{2x}", r"(e^x)^2"),
+    (r"x=-1,x=3", r"x=3,x=-1"),
 ]
 
 
@@ -81,6 +98,16 @@ WA_CASES = [
     (r"\frac{\sqrt{5}-1}{2}", r"\frac{\sqrt{5}+1}{2}"),
     (r"\sqrt{2}+\sqrt{3}", r"\sqrt{5}"),
     (r"e", r"2.718"),
+    # 対数・無理数の反証
+    (r"\log_{2}8", r"\log_{3}8"),
+    (r"\frac{\ln 8}{\ln 2}", r"4"),
+    (r"\ln 2 + \ln 3", r"\ln 5"),
+    (r"\frac{1}{\sqrt{2}-1}", r"\sqrt{2}-1"),
+    (r"\frac{\pi}{3}", r"60"),
+    (r"\cos 2x", r"1-2\cos^2 x"),
+    (r"0\le x\le 2", r"0<x\le 2"),
+    (r"\frac{1}{3}", r"0.3333333333"),
+    (r"n(n+1)", r"n(n-1)"),
 ]
 
 
