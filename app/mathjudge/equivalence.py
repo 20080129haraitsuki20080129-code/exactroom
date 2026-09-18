@@ -90,53 +90,104 @@ def _normalize_relation(rel):
 
 
 def _compare_relations(a, b) -> str:
-    """2 つの関係式が同値かを判定する。"""
+    r"""2 つの関係式が同値かを判定する。
+
+    WA を返すのは「一方だけを満たす厳密な点」を実際に見つけられたときだけ。
+    関係の種類 (= / ≠ / < / ≦) が違うだけでは非同値の証明にならない
+    (``x^2 \ge 0`` と ``x^2+1 > 0`` はどちらも恒真で同値)。
+    """
     fam_a, _, da = _normalize_relation(a)
     fam_b, _, db = _normalize_relation(b)
-    if fam_a != fam_b:
-        return WA  # = と ≠、≦ と < は別物
-    # d_a と d_b が「0 でない定数倍」の関係にあれば同値
-    ratio = None
-    try:
-        ratio = sp.cancel(sp.together(sp.Mul(da, sp.Pow(db, S(-1)))))
-    except Exception:
+
+    if fam_a == fam_b:
+        # d_a と d_b が「0 でない定数倍」の関係にあれば同値
         ratio = None
-    if ratio is not None and not ratio.free_symbols and not ratio.has(sp.zoo, sp.nan):
-        status = decide_zero(ratio)
-        if status == NONZERO:
-            if fam_a in ("eq", "ne"):
-                return AC
-            # 不等号は正の定数倍のときのみ同値 (向きが保たれる)
-            simplified = sp.simplify(ratio)
-            if simplified.is_Rational and simplified > 0:
-                return AC
-            if simplified.is_Rational and simplified < 0:
-                return WA
-            return PENDING
-        if status == ZERO:
-            return PENDING
-    # 反例探索: 片方だけを満たす厳密な点を見つければ非同値が確定する
-    if _relation_witness(da, db):
+        try:
+            ratio = sp.cancel(sp.together(sp.Mul(da, sp.Pow(db, S(-1)))))
+        except Exception:
+            ratio = None
+        if ratio is not None and not ratio.free_symbols and not ratio.has(sp.zoo, sp.nan):
+            status = decide_zero(ratio)
+            if status == NONZERO:
+                if fam_a in ("eq", "ne"):
+                    return AC
+                # 不等号は正の定数倍のときだけ向きが保たれる
+                simplified = sp.simplify(ratio)
+                if simplified.is_Rational and simplified > 0:
+                    return AC
+                if simplified.is_Rational and simplified < 0:
+                    return WA
+                return PENDING
+
+    # 反例探索: 真偽が食い違う厳密な点が見つかれば非同値が確定する
+    if _relation_witness(fam_a, da, fam_b, db):
         return WA
-    if prove_equal(da, db) == ZERO:
+    if fam_a == fam_b and prove_equal(da, db) == ZERO:
         return AC
     return PENDING
 
 
-def _relation_witness(da, db) -> bool:
-    """``da = 0`` と ``db = 0`` の解集合が異なることを示す点を探す。"""
-    from .exactzero import SAMPLE_VALUES
+def _truth_at(family: str, value):
+    """``value ▷ 0`` の真偽を厳密に判定する。決定できなければ ``None``。
+
+    等式・不等号で「満たす」の意味が違うので分けて扱う。
+    不等号は符号が厳密な有理数として確定する点だけを採用する
+    (符号決定に数値近似を使わないため)。
+    """
+    if value is None or not isinstance(value, sp.Expr):
+        return None
+    if value.has(sp.zoo, sp.nan):
+        return None
+    if family in ("eq", "ne"):
+        status = decide_zero(value)
+        if status == ZERO:
+            return family == "eq"
+        if status == NONZERO:
+            return family == "ne"
+        return None
+    sign = _rational_sign(value)
+    if sign is None:
+        return None
+    return sign > 0 if family == "strict" else sign >= 0
+
+
+def _relation_witness(fam_a: str, da, fam_b: str, db) -> bool:
+    """一方の関係式だけを満たす厳密な点を探す。
+
+    見つかればその点が非同値の証明になる。見つからなくても
+    「同値である」ことにはならない (判定保留になる)。
+    """
+    symbols, candidates = _witness_candidates(da, db)
+    if not symbols:
+        ta, tb = _truth_at(fam_a, da), _truth_at(fam_b, db)
+        if ta is None or tb is None:
+            return False
+        return ta != tb
+    for subs in candidates:
+        try:
+            va = da.subs(subs, simultaneous=True)
+            vb = db.subs(subs, simultaneous=True)
+        except Exception:
+            continue
+        ta, tb = _truth_at(fam_a, va), _truth_at(fam_b, vb)
+        if ta is None or tb is None:
+            continue
+        if ta != tb:
+            return True
+    return False
+
+
+def _witness_candidates(da, db) -> tuple[list, list[dict]]:
+    """反例候補となる厳密な代入の一覧を作る。
+
+    記号に付けた仮定 (正・実数など) を満たす値だけを使う。
+    """
+    from .exactzero import substitution_candidates
 
     symbols = sorted(da.free_symbols | db.free_symbols, key=lambda s: s.name)
     if not symbols:
-        za, zb = decide_zero(da), decide_zero(db)
-        return ZERO in (za, zb) and NONZERO in (za, zb)
-    candidates: list[dict] = []
-    n = len(SAMPLE_VALUES)
-    for i in range(min(n, 16)):
-        candidates.append(
-            {sym: SAMPLE_VALUES[(i + 3 * j) % n] for j, sym in enumerate(symbols)}
-        )
+        return symbols, []
+    candidates = substitution_candidates(symbols, limit=16)
     # 片方の根を反例候補に加える (1 変数の低次多項式のみ、厳密解)
     if len(symbols) == 1:
         sym = symbols[0]
@@ -154,19 +205,55 @@ def _relation_witness(da, db) -> bool:
             for root in roots:
                 if root.free_symbols or root.has(sp.zoo, sp.nan):
                     continue
+                if not _respects_assumptions(sym, root):
+                    continue
                 candidates.append({sym: root})
-    for subs in candidates:
-        try:
-            va = da.subs(subs, simultaneous=True)
-            vb = db.subs(subs, simultaneous=True)
-        except Exception:
-            continue
-        if va.has(sp.zoo, sp.nan) or vb.has(sp.zoo, sp.nan):
-            continue
-        sa, sb = decide_zero(va), decide_zero(vb)
-        if {sa, sb} == {ZERO, NONZERO}:
-            return True
-    return False
+    return symbols, candidates
+
+
+def _respects_assumptions(symbol, value) -> bool:
+    """代入値が記号の仮定を破っていないか。"""
+    violations = (
+        symbol.is_positive is True and value.is_positive is not True,
+        symbol.is_nonnegative is True and value.is_negative is True,
+        symbol.is_real is True and value.is_real is not True,
+        symbol.is_integer is True and value.is_integer is not True,
+    )
+    return not any(violations)
+
+
+def _rational_sign(value) -> int | None:
+    """厳密な有理数としての符号。有理数に落ちなければ ``None``。
+
+    不等式の真偽判定に数値近似を使わないため、符号が厳密に確定する
+    (有理数になる) 点だけを反例候補として採用する。
+    """
+    if not isinstance(value, sp.Expr) or value.free_symbols:
+        return None
+    if value.has(sp.zoo, sp.nan, sp.oo, -sp.oo):
+        return None
+    candidate = value
+    if not candidate.is_Rational:
+        candidate = _safe_simplify(candidate)
+        if candidate is None or not candidate.is_Rational:
+            return None
+    if candidate > 0:
+        return 1
+    if candidate < 0:
+        return -1
+    return 0
+
+
+def _safe_simplify(value):
+    try:
+        out = sp.cancel(sp.together(value))
+        if not out.is_Rational:
+            out = sp.simplify(out)
+    except Exception:
+        return None
+    if out is None or out.atoms(sp.Float):
+        return None
+    return out
 
 
 def _compare_sets(a: sp.Set, b: sp.Set) -> str:

@@ -5,7 +5,7 @@ const $ = (id) => document.getElementById(id);
 
 const solver = session.getSolver();
 if (!solver || !solver.token) {
-  location.replace("/");
+  location.replace("index.html");
 }
 
 let problems = [];
@@ -16,26 +16,48 @@ setText($("room-meta"), solver ? `${solver.title || "(名前なし)"} / ${solver
 setText($("user-meta"), solver ? solver.name : "");
 
 if (solver && solver.recoveryCode) {
+  const note = $("recovery-note");
   setText(
-    $("recovery-note"),
+    note,
     `復帰コード: ${solver.recoveryCode} — 別の端末や再入室で同じ名前を使うときに必要になることがあります。控えておいてください。`
   );
   const saved = { ...solver };
   delete saved.recoveryCode;
-  // 一度表示したら消す (画面に残し続けない)
-  setTimeout(() => session.setSolver(saved), 60000);
+  // 「控えた」と押されるまで消さない。時間切れで勝手に消すと、
+  // 控えそこねた解答者が同じ名前で戻れなくなることがある。
+  note.appendChild(document.createTextNode(" "));
+  note.appendChild(
+    el("button", {
+      className: "small",
+      text: "控えたので閉じる",
+      attrs: { type: "button" },
+      on: {
+        click: () => {
+          setText(note, "");
+          session.setSolver(saved);
+        },
+      },
+    })
+  );
 }
 
 $("leave").addEventListener("click", () => {
+  if (
+    !confirm(
+      "退出します。復帰コードを控えていない場合、同じ名前で戻れなくなることがあります。よろしいですか?"
+    )
+  ) {
+    return;
+  }
   session.clearSolver();
-  location.href = "/";
+  location.href = "index.html";
 });
 
 function handleError(err) {
   if (err && err.status === 401) {
     session.clearSolver();
     showError($("global-error"), "セッションの有効期限が切れました。もう一度参加してください。");
-    setTimeout(() => location.replace("/"), 1500);
+    setTimeout(() => location.replace("index.html"), 1500);
     return;
   }
   showError($("global-error"), (err && err.message) || "エラーが発生しました。");

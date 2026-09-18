@@ -20,7 +20,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .config import get_settings
 from .db import init_db
-from .mathjudge.runner import reset_runner
+from .mathjudge.runner import configure_runner, reset_runner
 from .routers import host, rooms, solve
 
 logger = logging.getLogger("exactroom")
@@ -32,6 +32,11 @@ STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 async def lifespan(_app: FastAPI):
     settings = get_settings()
     init_db()
+    configure_runner(
+        isolation=settings.judge_isolation,
+        workers=settings.judge_workers,
+        timeout=settings.judge_timeout_sec,
+    )
     logger.info(
         "ExactRoom started (env=%s, judge=%s)",
         settings.environment,
@@ -136,15 +141,20 @@ def create_app() -> FastAPI:
             "/static", StaticFiles(directory=str(STATIC_DIR)), name="static"
         )
 
+        # フロントを別ホスト (GitHub Pages など) に置いたときと同じ相対リンクで
+        # 動くように、"/solve" と "/solve.html" の両方を受ける。
         @app.get("/", include_in_schema=False)
+        @app.get("/index.html", include_in_schema=False)
         def index() -> FileResponse:
             return FileResponse(STATIC_DIR / "index.html")
 
         @app.get("/solve", include_in_schema=False)
+        @app.get("/solve.html", include_in_schema=False)
         def solve_page() -> FileResponse:
             return FileResponse(STATIC_DIR / "solve.html")
 
         @app.get("/host", include_in_schema=False)
+        @app.get("/host.html", include_in_schema=False)
         def host_page() -> FileResponse:
             return FileResponse(STATIC_DIR / "host.html")
 

@@ -14,7 +14,29 @@ from typing import Annotated
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, field_validator
 
+from .config import get_settings
 from .mathjudge.parser import ParseOptions
+
+
+def _limits() -> dict:
+    """入力長の上限を設定から読む。
+
+    ここで読まないと ``MAX_ANSWER_CHARS`` などを変えても Pydantic 側の
+    上限が固定のままになり、設定が効かない。
+    """
+    try:
+        settings = get_settings()
+    except Exception:  # pragma: no cover - 設定不備時は既定値で読み込めるようにする
+        return {"answer": 500, "statement": 2000, "title": 200, "name": 24}
+    return {
+        "answer": settings.max_answer_chars,
+        "statement": settings.max_statement_chars,
+        "title": settings.max_title_chars,
+        "name": settings.max_name_chars,
+    }
+
+
+LIMITS = _limits()
 
 
 def _ensure_utc(value):
@@ -63,7 +85,7 @@ class ParseOptionsIn(BaseModel):
 
 
 class RoomCreate(BaseModel):
-    title: str = Field(default="", max_length=120)
+    title: str = Field(default="", max_length=LIMITS["title"])
     secret: str = Field(min_length=8, max_length=128)
     creation_token: str = Field(default="", max_length=128)
 
@@ -96,7 +118,7 @@ class HostSession(BaseModel):
 
 
 class JoinRequest(BaseModel):
-    display_name: str = Field(min_length=1, max_length=24)
+    display_name: str = Field(min_length=1, max_length=LIMITS["name"])
     recovery_code: str = Field(default="", max_length=32)
 
 
@@ -112,7 +134,7 @@ class JoinResponse(BaseModel):
 
 
 class RoomSettingsUpdate(BaseModel):
-    title: str | None = Field(default=None, max_length=120)
+    title: str | None = Field(default=None, max_length=LIMITS["title"])
     is_open: bool | None = None
     rejoin_policy: str | None = None
     max_submissions_per_problem: int | None = Field(default=None, ge=0, le=1000)
@@ -132,11 +154,11 @@ class RoomSettingsUpdate(BaseModel):
 
 
 class ProblemCreate(BaseModel):
-    title: str = Field(default="", max_length=200)
-    statement_latex: str = Field(default="", max_length=2000)
-    statement_note: str = Field(default="", max_length=2000)
+    title: str = Field(default="", max_length=LIMITS["title"])
+    statement_latex: str = Field(default="", max_length=LIMITS["statement"])
+    statement_note: str = Field(default="", max_length=LIMITS["statement"])
     #: 模範解答 (TeX)。登録専用。レスポンスには載らない。
-    answer_latex: str = Field(min_length=1, max_length=500)
+    answer_latex: str = Field(min_length=1, max_length=LIMITS["answer"])
     parse_options: ParseOptionsIn = Field(default_factory=ParseOptionsIn)
     ordered_list: bool = False
     is_published: bool = True
@@ -144,10 +166,12 @@ class ProblemCreate(BaseModel):
 
 
 class ProblemUpdate(BaseModel):
-    title: str | None = Field(default=None, max_length=200)
-    statement_latex: str | None = Field(default=None, max_length=2000)
-    statement_note: str | None = Field(default=None, max_length=2000)
-    answer_latex: str | None = Field(default=None, min_length=1, max_length=500)
+    title: str | None = Field(default=None, max_length=LIMITS["title"])
+    statement_latex: str | None = Field(default=None, max_length=LIMITS["statement"])
+    statement_note: str | None = Field(default=None, max_length=LIMITS["statement"])
+    answer_latex: str | None = Field(
+        default=None, min_length=1, max_length=LIMITS["answer"]
+    )
     parse_options: ParseOptionsIn | None = None
     ordered_list: bool | None = None
     is_published: bool | None = None
@@ -198,7 +222,7 @@ class HostProblemDetail(HostProblemSummary):
 
 class SubmissionCreate(BaseModel):
     problem_id: int
-    answer_latex: str = Field(min_length=1, max_length=500)
+    answer_latex: str = Field(min_length=1, max_length=LIMITS["answer"])
 
 
 class SubmissionResult(BaseModel):
@@ -253,10 +277,18 @@ class HostParticipant(BaseModel):
     ac_count: int = 0
 
 
+class RecoveryCodeReset(BaseModel):
+    """出題者が再発行した復帰コード (出題者にだけ返す)。"""
+
+    participant_id: int
+    display_name: str
+    recovery_code: str
+
+
 class AnswerCheckRequest(BaseModel):
     """出題者が模範解答の書き方を確かめるための試し打ち。"""
 
-    answer_latex: str = Field(min_length=1, max_length=500)
+    answer_latex: str = Field(min_length=1, max_length=LIMITS["answer"])
     parse_options: ParseOptionsIn = Field(default_factory=ParseOptionsIn)
 
 
@@ -271,7 +303,7 @@ class SelfTestRequest(BaseModel):
     """出題者が「この答案なら AC になるか」を試すための機能。"""
 
     problem_id: int
-    candidate_latex: str = Field(min_length=1, max_length=500)
+    candidate_latex: str = Field(min_length=1, max_length=LIMITS["answer"])
 
 
 class SelfTestResponse(BaseModel):

@@ -144,7 +144,7 @@ docker compose up --build
 | 解答の種類 | 例 | 比較方法 |
 | --- | --- | --- |
 | 式 `expr` | `x^2-1` | 差が 0 か |
-| 関係式 `rel` | `x = 1`, `0 \le x \le 1` | 同じ種類の関係で、`左辺-右辺` が 0 でない定数倍の関係にあるか。不等号は正の定数倍のみ同値 |
+| 関係式 `rel` | `x = 1`, `0 \le x \le 1` | `左辺-右辺` が 0 でない定数倍(不等号は正の定数倍)なら AC。そうでなければ、**一方だけを満たす厳密な点**を探して見つかれば WA |
 | 集合 `set` | `\{1,2\}` | 要素を総当たりで照合(重複を潰して両包含) |
 | 複数解 `list` | `1, 2` | 既定では集合として比較。「順序も一致させる」設定も可 |
 
@@ -255,11 +255,12 @@ docs/                  スキーマ・公開手順・セキュリティ・判定
 
 - **フロントはビルド不要の静的ファイル**。同一オリジン配信でも、GitHub Pages 等に
   分離しても動きます(`static/js/config.js` の `EXACTROOM_API_BASE` を書き換え、
-  サーバ側は `CORS_ORIGINS` を設定するだけ)。
+  サーバ側は `CORS_ORIGINS` を設定するだけ)。ページ間のリンクは相対パスなので、
+  `/solve` でも `/static/solve.html` でも同じファイルがそのまま動きます。
 - **DB は `DATABASE_URL` を差し替えるだけ**で SQLite ↔ PostgreSQL を移行できます。
 - **CDN も差し替え可能**。`static/js/config.js` に候補 URL を並べてあり、
   全部失敗したら自動的にプレーン TeX 入力にフォールバックします。
-- **標準の ASGI アプリ + Dockerfile** なので、Render / Fly.io / Koyeb /
+- **標準の ASGI アプリ + Dockerfile** なので、Render / Koyeb /
   Hugging Face Spaces / 自宅サーバ + Cloudflare Tunnel のどこでも動きます。
 - レート制限は `app/ratelimit.py` の `RateLimiter` を差し替えれば Redis 等に移せます。
 
@@ -340,7 +341,9 @@ pytest -q
 | `tests/test_api.py` | 部屋作成 → 出題 → 参加 → 提出 → 確認 の一連 |
 | `tests/test_secrecy.py` | **模範解答が解答者に漏れないこと** |
 | `tests/test_security.py` | eval 不使用・数値評価不使用・認証・レート制限・DoS 耐性 |
-| `tests/test_runner.py` | プロセス分離とタイムアウト |
+| `tests/test_runner.py` | プロセス分離、タイムアウト、設定の反映、巻き添え時の再試行 |
+
+合計 222 件。10 秒以内に完走します。
 
 CI(GitHub Actions)では Python 3.11 / 3.12 で lint + テストを実行します。
 
@@ -373,10 +376,13 @@ python scripts/admin.py delete-room ABC123 --yes
 | **自宅 PC + Cloudflare Tunnel** | 0 円 | どこにも縛られない。常時起動できるなら最有力 |
 | **Render(Free) + Neon(Free Postgres)** | 0 円 | クレジットカード不要。15 分で自動スリープ |
 | **Hugging Face Spaces(Docker, Free)** | 0 円 | Dockerfile をそのまま使えます |
-| **Koyeb / Fly.io の無料枠** | 0 円 | 枠の内容は変わるので要確認 |
+| **Koyeb など** | 要確認 | 無料枠の条件は変わりやすい。Fly.io は 2024 年に無料割当を廃止済み |
 
 どれも `Dockerfile` か `requirements.txt` + 起動コマンドだけで動きます。
 サービスを乗り換えるときは `DATABASE_URL` と `SECRET_KEY` を移すだけです。
+
+> 無料枠の条件は各社とも頻繁に変わります。課金を確実に避けたいなら、
+> **支払い方法の登録なしで始められる**上 3 つから選んでください。
 
 ---
 
@@ -397,6 +403,10 @@ A. はい。同じ部屋コードと秘密キーを知っている人は全員�
 **Q. 同じ名前で二人が参加したら?**
 A. 既定(`rejoin_policy=open`)では同一人物として扱われます。なりすましを防ぐには
 設定で「復帰コードが必要」に切り替えてください。
+
+**Q. 解答者が復帰コードを控え忘れたら?**
+A. 出題者が「参加者」タブの「復帰コード再発行」で新しいコードを発行できます
+(古いコードは無効になります)。
 
 **Q. 模範解答は本当に送られない?**
 A. はい。解答者向けの API スキーマに `answer_latex` は存在せず、判定はサーバ内だけで

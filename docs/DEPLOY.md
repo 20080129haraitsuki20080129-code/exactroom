@@ -1,8 +1,15 @@
-# 公開手順(すべて無料)
+# 公開手順(無料で運用する)
 
 ExactRoom は「標準の ASGI アプリ + ビルド不要の静的ファイル + `DATABASE_URL` だけの DB 依存」
 という構成なので、無料枠のある PaaS ならほぼどこでも動きます。
 **どのサービスを選んでも、移行に必要なのは `SECRET_KEY` と `DATABASE_URL` を移すことだけ**です。
+
+> **無料枠についての注意**
+> 各社の無料枠の条件は頻繁に変わります(例: Fly.io は 2024 年に従来の無料割当を
+> 廃止しました)。申し込む前に必ず**その時点の料金ページ**を確認してください。
+> 課金を確実に避けたいなら、**支払い方法を登録しなくても始められる選択肢**
+> (下の 1. 自宅 PC + Cloudflare Tunnel、2. Render Free、3. Hugging Face Spaces)
+> から選ぶのが安全です。
 
 まず全構成に共通の準備から。
 
@@ -142,9 +149,13 @@ PostgreSQL(Neon)を使います。
 
 ---
 
-## 4. Fly.io / Koyeb
+## 4. Fly.io / Koyeb(※ 無料枠の有無は要確認)
 
 同梱の [`Dockerfile`](../Dockerfile) をそのまま使えます。
+**Fly.io は 2024 年に従来の無料割当を廃止しており、現在は基本的に有料です。**
+「料金を払わない」ことが要件なら 1〜3 を選んでください。ここでは、
+すでにアカウントを持っている場合や、将来また無料枠が復活した場合のための
+手順として残しています。
 
 ### Fly.io
 
@@ -158,17 +169,24 @@ fly deploy
 
 ```bash
 fly volumes create exactroom_data --size 1 --region nrt
-# fly.toml の [mounts] のコメントを外す
 fly secrets set DATABASE_URL="sqlite:////data/exactroom.db"
 ```
+
+> **注意**: 同梱の Dockerfile はコンテナを非 root (uid 10001) で動かします。
+> Fly のボリュームは root 所有でマウントされるため、そのままでは
+> `/data` に SQLite ファイルを作れません。ボリュームを使う場合は
+> 次のいずれかにしてください。
+>
+> * `DATABASE_URL` を外部 PostgreSQL (Neon など) にしてボリュームを使わない(推奨)
+> * Dockerfile の `USER exactroom` をコメントアウトして root で動かす
+> * 起動時に `chown 10001:10001 /data` する初期化処理を挟む
 
 ### Koyeb
 
 「Create Service」→ GitHub → Dockerfile を自動検出。
 環境変数を設定してデプロイするだけです。
 
-> 無料枠の条件は変わりやすいので、各サービスの最新情報を確認してください。
-> どの場合も移行に必要なのは `SECRET_KEY` と `DATABASE_URL` だけです。
+> どのサービスでも、移行に必要なのは `SECRET_KEY` と `DATABASE_URL` だけです。
 
 ---
 
@@ -178,17 +196,27 @@ fly secrets set DATABASE_URL="sqlite:////data/exactroom.db"
 Cloudflare Pages / Vercel などに単体で置けます。API サーバへの依存を薄くしたい、
 あるいは静的配信を高速化したい場合に有効です。
 
-1. `static/js/config.js` を編集:
+ページ間の移動もアセットの参照も、**`static/` フォルダを丸ごとどこに置いても
+動くようになっています**(`index.html` / `solve.html` / `host.html` は
+相対リンクで、CSS/JS は `/static/...` を参照します)。
+
+1. `static/js/config.js` を編集して API の場所を指定します:
 
    ```js
    window.EXACTROOM_API_BASE = "https://exactroom.onrender.com";
    ```
 
-2. `static/` の中身をそのままホスティングサービスに置きます。
-   ただし `/solve` と `/host` へのルーティングが必要なので、
-   `solve.html` / `host.html` を直接開く形にするか、リライト設定を入れてください。
-   (GitHub Pages なら `/solve.html` `/host.html` をそのまま使うのが簡単です。
-   その場合 `home.js` の `location.href = "/solve"` を `"/solve.html"` に変えます。)
+2. **リポジトリのルートをそのまま公開します**(`static/` フォルダごと)。
+   CSS と JS は `/static/css/app.css` のような絶対パスを参照するため、
+   `static/` の *中身* だけをサイトのルートに置くと 404 になります。
+
+   * GitHub Pages: リポジトリを Pages で公開し、
+     入口の URL は `https://<ユーザ名>.github.io/<リポジトリ名>/static/index.html`
+   * Netlify / Cloudflare Pages: 公開ディレクトリをリポジトリルート(`.`)にし、
+     入口は `/static/index.html`
+
+   `solve.html` / `host.html` へはページ内のリンクで移動するので、
+   リライト設定は不要です。
 
 3. API サーバ側で CORS を許可します。
 
@@ -196,7 +224,11 @@ Cloudflare Pages / Vercel などに単体で置けます。API サーバへの�
    CORS_ORIGINS=https://<ユーザ名>.github.io
    ```
 
-4. API サーバの `SERVE_STATIC=false` にすれば、静的配信を止められます。
+4. API サーバは `SERVE_STATIC=false` にすれば静的配信を止められます。
+
+> 動作確認: 公開した `index.html` を開き、ブラウザの開発者ツールで
+> CSS/JS が 200 で読めていること、参加リンクのコピーが
+> `.../static/index.html?code=XXXXXX` になっていることを確かめてください。
 
 ---
 

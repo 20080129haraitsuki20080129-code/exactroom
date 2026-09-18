@@ -149,6 +149,14 @@ textarea { min-height: 72px; resize: vertical; }
 
 .mono { font-family: var(--mono); font-size: 0.92rem; }
 
+/* フォーム要素では等幅を効かせつつ 16px を維持する。
+   16px 未満だと iOS Safari がフォーカス時にページを自動ズームしてしまう。
+   詳細度 (0,1,1) なので input[type="text"] にも .mono にも勝つ。 */
+input.mono, textarea.mono, select.mono {
+  font-family: var(--mono);
+  font-size: 16px;
+}
+
 .hint { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; }
 
 .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }

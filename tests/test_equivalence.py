@@ -193,3 +193,79 @@ def test_assume_positive_helps_log():
 def test_verdicts_are_only_three_values():
     for model, submitted in AC_CASES[:5] + WA_CASES[:5]:
         assert judge(model, submitted).verdict in (AC, WA, PENDING)
+
+
+# --------------------------------------------------------------------------
+# 回帰テスト: 偽 WA (同値なのに WA) を出さないこと
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "model,submitted",
+    [
+        # どちらも実数全体で恒真なので同値。反例点が存在しないので WA にできない。
+        (r"x^2 \ge 0", r"(x-1)^2 \ge 0"),
+        (r"x^2+1 > 0", r"x^2+2 > 0"),
+        (r"x^2 \ge 0", r"x^2+1 > 0"),
+        (r"x^2 \ge 0", r"x^4 \ge 0"),
+    ],
+)
+def test_never_wa_for_equivalent_inequalities(model, submitted):
+    """不等式では「d=0 になる点が違う」は非同値の証明にならない。
+
+    以前は零点の違いだけで WA にしていたため、恒真な不等式どうしが
+    WA になっていた (要件: WA は厳密に非同値と証明できたときだけ)。
+    """
+    assert judge(model, submitted).verdict != WA
+
+
+@pytest.mark.parametrize(
+    "model,submitted",
+    [
+        (r"x > 2", r"x \ge 2"),
+        (r"x = 1", r"x \ne 1"),
+        (r"x = 1", r"x \ge 1"),
+        (r"x \ge 1", r"x \ge 2"),
+        (r"x \le 3", r"x \ge 3"),
+    ],
+)
+def test_genuine_relation_differences_still_wa(model, submitted):
+    """本物の非同値は、反例点を見つけて WA のままであること。"""
+    assert judge(model, submitted).verdict == WA
+
+
+@pytest.mark.parametrize(
+    "model,submitted",
+    [
+        (r"x \ge 1", r"2x \ge 2"),
+        (r"2x+1 > 5", r"x > 2"),
+        (r"x = 1", r"2x = 2"),
+    ],
+)
+def test_relation_equivalence_preserved(model, submitted):
+    assert judge(model, submitted).verdict == AC
+
+
+def test_substitution_respects_symbol_assumptions():
+    """仮定を破る値を代入しないこと (偽 WA の原因になる)。"""
+    from app.mathjudge.exactzero import admissible_values, substitution_candidates
+
+    positive = sp.Symbol("p", positive=True)
+    for value in admissible_values(positive):
+        assert value.is_positive is True
+
+    plain = sp.Symbol("q", real=True)
+    assert len(admissible_values(plain)) > len(admissible_values(positive))
+
+    for subs in substitution_candidates([positive], limit=8):
+        assert subs[positive].is_positive is True
+
+
+def test_assume_positive_cases_are_not_wa():
+    """x>0 の仮定の下で等しい式が WA にならないこと。"""
+    for model, submitted in [
+        (r"\sqrt{x^2}", r"x"),
+        (r"\ln(x^2)", r"2\ln x"),
+        (r"\sqrt{x}\sqrt{x}", r"x"),
+    ]:
+        assert judge(model, submitted, {"assume_positive": True}).verdict != WA

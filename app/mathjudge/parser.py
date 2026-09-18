@@ -32,6 +32,9 @@ MAX_EXPONENT = 1000
 MAX_FACTORIAL = 500
 #: 生成される整数の桁数の上限
 MAX_INT_DIGITS = 2000
+#: 添字の式の複雑さの上限 (a_{(x+y+z+w)^{200}} のような展開爆発を防ぐ)
+MAX_SUBSCRIPT_OPS = 16
+MAX_SUBSCRIPT_EXPONENT = 8
 
 # --------------------------------------------------------------------------
 # パースオプション (問題ごとに出題者が設定できる)
@@ -861,7 +864,14 @@ class LatexParser:
 
 
 def _subscript_label(expr) -> str:
-    """添字の式を、順序に依らない安定した文字列に変換する。"""
+    """添字の式を、順序に依らない安定した文字列に変換する。
+
+    添字はあくまでラベルなので、複雑な式は受け付けない。
+    展開の前に大きさを検査しないと ``a_{(x+y+z+w)^{200}}`` のような入力で
+    多項式展開が爆発する (パーサは出題者向けエンドポイントでは
+    リクエストスレッド上で同期実行されるため、ここで止める必要がある)。
+    """
+    _check_subscript_size(expr)
     try:
         text = sp.sstr(sp.expand(expr))
     except Exception:  # pragma: no cover - 防御的
@@ -870,6 +880,25 @@ def _subscript_label(expr) -> str:
     if len(text) > 32:
         raise InputTooLargeError("添字が長すぎます。")
     return text
+
+
+def _check_subscript_size(expr) -> None:
+    """添字の式が展開しても安全な大きさか確認する。"""
+    try:
+        if sp.count_ops(expr) > MAX_SUBSCRIPT_OPS:
+            raise InputTooLargeError("添字の式が複雑すぎます。")
+        for power in expr.atoms(sp.Pow):
+            exponent = power.exp
+            if exponent.is_Integer and abs(int(exponent)) > MAX_SUBSCRIPT_EXPONENT:
+                raise InputTooLargeError("添字の指数が大きすぎます。")
+            if not exponent.is_Integer and not exponent.is_Rational:
+                raise InputTooLargeError("添字の式が複雑すぎます。")
+        if len(expr.free_symbols) > 4:
+            raise InputTooLargeError("添字の式が複雑すぎます。")
+    except InputTooLargeError:
+        raise
+    except Exception:  # pragma: no cover - 防御的
+        raise InputTooLargeError("添字の式を解釈できません。") from None
 
 
 #: atom を開始できるコマンド (暗黙の掛け算の判定に使う)

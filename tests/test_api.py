@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 
 def make_problem(host, **overrides):
     payload = {
@@ -232,3 +234,89 @@ def test_cooldown(app_client, host, solver):
 
 def test_healthz(app_client):
     assert app_client.get("/healthz").json() == {"status": "ok"}
+
+
+def test_host_can_reissue_recovery_code(app_client, host, room):
+    """復帰コードを控え損ねた解答者を出題者が救済できること。"""
+    joined = app_client.post(
+        f"/api/rooms/{room['code']}/join", json={"display_name": "さぶろう"}
+    ).json()
+    host.patch("/api/host/settings", json={"rejoin_policy": "code"})
+
+    # 古いコードでは入れる
+    assert (
+        app_client.post(
+            f"/api/rooms/{room['code']}/join",
+            json={"display_name": "さぶろう", "recovery_code": joined["recovery_code"]},
+        ).status_code
+        == 200
+    )
+
+    reissued = host.post(
+        f"/api/host/participants/{joined['participant_id']}/recovery-code", json={}
+    )
+    assert reissued.status_code == 200, reissued.text
+    new_code = reissued.json()["recovery_code"]
+    assert new_code and new_code != joined["recovery_code"]
+
+    # 古いコードは無効になり、新しいコードで入れる
+    assert (
+        app_client.post(
+            f"/api/rooms/{room['code']}/join",
+            json={"display_name": "さぶろう", "recovery_code": joined["recovery_code"]},
+        ).status_code
+        == 401
+    )
+    assert (
+        app_client.post(
+            f"/api/rooms/{room['code']}/join",
+            json={"display_name": "さぶろう", "recovery_code": new_code},
+        ).status_code
+        == 200
+    )
+
+
+def test_recovery_reset_requires_host_and_same_room(app_client, host, room, solver):
+    joined = app_client.post(
+        f"/api/rooms/{room['code']}/join", json={"display_name": "しろう"}
+    ).json()
+    assert (
+        solver.post(
+            f"/api/host/participants/{joined['participant_id']}/recovery-code", json={}
+        ).status_code
+        == 403
+    )
+
+    other = app_client.post(
+        "/api/rooms", json={"title": "別室", "secret": "another-secret-key"}
+    ).json()
+    from tests.conftest import Actor
+
+    intruder = Actor(app_client, other["host_token"])
+    assert (
+        intruder.post(
+            f"/api/host/participants/{joined['participant_id']}/recovery-code", json={}
+        ).status_code
+        == 404
+    )
+
+
+def test_input_limits_come_from_settings():
+    """MAX_ANSWER_CHARS などがスキーマに実際に反映されること。"""
+    from app.schemas import LIMITS, SubmissionCreate
+
+    metadata = SubmissionCreate.model_fields["answer_latex"].metadata
+    max_lengths = [m.max_length for m in metadata if hasattr(m, "max_length")]
+    assert max_lengths == [LIMITS["answer"]]
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["/", "/index.html", "/solve", "/solve.html", "/host", "/host.html",
+     "/static/index.html", "/static/solve.html", "/static/host.html",
+     "/static/css/app.css", "/static/js/home.js"],
+)
+def test_pages_are_served_under_both_layouts(app_client, path):
+    """同一オリジン配信でも、静的ホスティング配下の相対リンクでも開けること。"""
+    response = app_client.get(path)
+    assert response.status_code == 200, path

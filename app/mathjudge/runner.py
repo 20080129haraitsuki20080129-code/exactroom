@@ -65,6 +65,7 @@ class JudgePool:
         submitted_latex: str,
         options: dict | None,
         timeout: float = DEFAULT_TIMEOUT_SEC,
+        _retry: bool = True,
     ) -> dict:
         with self._lock:
             pool = self._ensure_pool()
@@ -85,6 +86,13 @@ class JudgePool:
         except Exception as exc:
             with self._lock:
                 self._reset_pool()
+            if _retry:
+                # 他の人の判定がタイムアウトしてプールごと作り直されると、
+                # 同時に走っていた自分の判定まで巻き添えで落ちる。
+                # 自分の入力に問題があるとは限らないので一度だけやり直す。
+                return self.run(
+                    model_latex, submitted_latex, options, timeout, _retry=False
+                )
             return JudgeResult(
                 verdict=PENDING,
                 reason="worker_error",
@@ -118,10 +126,48 @@ class InlineRunner:
 
 _runner = None
 _runner_lock = threading.Lock()
+#: ``configure_runner()`` で明示的に設定された値 (未設定なら環境変数を見る)
+_config: dict = {}
+
+
+def configure_runner(
+    isolation: str | None = None,
+    workers: int | None = None,
+    timeout: float | None = None,
+) -> None:
+    """判定ランナーの設定を明示的に与える。
+
+    ``app/main.py`` の起動時に ``Settings`` の値を渡す。こうしないと
+    ``.env`` にだけ書いた ``JUDGE_ISOLATION`` 等が無視されてしまう
+    (``os.getenv`` はプロセス環境変数しか見ないため)。
+    """
+    global _runner
+    with _runner_lock:
+        if isolation is not None:
+            _config["isolation"] = str(isolation).lower()
+        if workers is not None:
+            _config["workers"] = int(workers)
+        if timeout is not None:
+            _config["timeout"] = float(timeout)
+        if _runner is not None:
+            _runner.shutdown()
+            _runner = None
+
+
+def _setting(name: str, env: str, default):
+    if name in _config:
+        return _config[name]
+    raw = os.getenv(env)
+    if raw is None:
+        return default
+    try:
+        return type(default)(raw)
+    except (TypeError, ValueError):
+        return default
 
 
 def get_runner():
-    """環境変数 ``JUDGE_ISOLATION`` に従ってランナーを返す。
+    """設定に従ってランナーを返す。
 
     * ``process`` (既定) … 別プロセス + ハードタイムアウト
     * ``inline``          … 同一プロセス (CI やサーバレス環境向け)
@@ -130,22 +176,24 @@ def get_runner():
     if _runner is None:
         with _runner_lock:
             if _runner is None:
-                mode = os.getenv("JUDGE_ISOLATION", "process").lower()
+                mode = str(_setting("isolation", "JUDGE_ISOLATION", "process")).lower()
                 if mode == "inline":
                     _runner = InlineRunner()
                 else:
-                    workers = int(os.getenv("JUDGE_WORKERS", "2"))
+                    workers = int(_setting("workers", "JUDGE_WORKERS", 2))
                     _runner = JudgePool(workers=workers)
     return _runner
 
 
-def reset_runner() -> None:
+def reset_runner(clear_config: bool = False) -> None:
     """テスト用: ランナーを破棄する。"""
     global _runner
     with _runner_lock:
         if _runner is not None:
             _runner.shutdown()
         _runner = None
+        if clear_config:
+            _config.clear()
 
 
 def judge_isolated(
@@ -154,5 +202,6 @@ def judge_isolated(
     options: dict | None = None,
     timeout: float | None = None,
 ) -> dict:
-    timeout = timeout or float(os.getenv("JUDGE_TIMEOUT_SEC", DEFAULT_TIMEOUT_SEC))
+    if timeout is None:
+        timeout = float(_setting("timeout", "JUDGE_TIMEOUT_SEC", DEFAULT_TIMEOUT_SEC))
     return get_runner().run(model_latex, submitted_latex, options, timeout=timeout)

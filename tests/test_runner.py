@@ -66,3 +66,43 @@ def test_judge_isolated_uses_configured_mode(monkeypatch):
     assert time.monotonic() - started < 10
     assert isinstance(runner.get_runner(), runner.InlineRunner)
     runner.reset_runner()
+
+
+def test_configure_runner_overrides_environment(monkeypatch):
+    """.env 由来の設定が os.environ に無くても効くこと。"""
+    monkeypatch.delenv("JUDGE_ISOLATION", raising=False)
+    runner.reset_runner(clear_config=True)
+    runner.configure_runner(isolation="inline", workers=1, timeout=5.0)
+    try:
+        assert isinstance(runner.get_runner(), runner.InlineRunner)
+        assert runner.judge_isolated(r"\frac{1}{2}", r"0.5")["verdict"] == "AC"
+    finally:
+        runner.reset_runner(clear_config=True)
+        monkeypatch.setenv("JUDGE_ISOLATION", "inline")
+
+
+def test_worker_error_is_retried_once(monkeypatch):
+    """他人のタイムアウトで巻き添えになった判定を 1 回やり直すこと。"""
+    pool = runner.JudgePool(workers=1)
+    calls = {"n": 0}
+    real_ensure = pool._ensure_pool
+
+    class BrokenResult:
+        def get(self, timeout=None):
+            raise OSError("pool terminated by another request")
+
+    class BrokenPool:
+        def apply_async(self, *_args, **_kwargs):
+            return BrokenResult()
+
+    def fake_ensure():
+        calls["n"] += 1
+        return BrokenPool() if calls["n"] == 1 else real_ensure()
+
+    monkeypatch.setattr(pool, "_ensure_pool", fake_ensure)
+    try:
+        result = pool.run(r"\frac{1}{2}", r"0.5", {}, timeout=60)
+        assert calls["n"] >= 2, "再試行されていない"
+        assert result["verdict"] == "AC"
+    finally:
+        pool.shutdown()

@@ -1,7 +1,7 @@
 """環境変数による設定。
 
-すべて ``EXACTROOM_`` プレフィックス、または素の名前で読める。
-``.env.example`` も参照。
+変数名はフィールド名と同じ (大文字小文字は区別しない)。
+``.env`` ファイルからも読み込む。``.env.example`` も参照。
 """
 
 from __future__ import annotations

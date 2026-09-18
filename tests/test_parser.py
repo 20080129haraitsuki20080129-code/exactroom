@@ -128,3 +128,30 @@ def test_rejects_deep_nesting():
 def test_control_characters_rejected():
     with pytest.raises(LatexSyntaxError):
         parse_latex_answer("1+\x001")
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        r"a_{(x+y)^{1000}}",
+        r"a_{(x+y+z+w)^{200}}",
+        r"a_{(x+y+z+w+v)^{1000}}",
+    ],
+)
+def test_subscript_expansion_is_bounded(source):
+    """添字の多項式展開でメモリ・CPU を食い潰さないこと。
+
+    以前は展開前に大きさを見ていなかったため、20 文字程度の入力で
+    ワーカーが OOM で落ちていた。
+    """
+    import time
+
+    started = time.monotonic()
+    with pytest.raises(InputTooLargeError):
+        parse_latex_answer(source)
+    assert time.monotonic() - started < 3.0
+
+
+@pytest.mark.parametrize("source", [r"a_{n+1}", r"x_{12}", r"a_{2n}", r"x_1"])
+def test_normal_subscripts_still_work(source):
+    assert parse_latex_answer(source).kind == "expr"

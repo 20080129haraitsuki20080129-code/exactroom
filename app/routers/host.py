@@ -30,11 +30,13 @@ from ..schemas import (
     HostSubmission,
     ProblemCreate,
     ProblemUpdate,
+    RecoveryCodeReset,
     RoomPublic,
     RoomSettingsUpdate,
     SelfTestRequest,
     SelfTestResponse,
 )
+from ..security import generate_recovery_code, hash_secret
 
 router = APIRouter(prefix="/api/host", tags=["host"])
 
@@ -425,6 +427,33 @@ def export_submissions_csv(
         headers={
             "Content-Disposition": f'attachment; filename="exactroom_{ctx.room.code}.csv"'
         },
+    )
+
+
+@router.post(
+    "/participants/{participant_id}/recovery-code", response_model=RecoveryCodeReset
+)
+def reset_recovery_code(
+    participant_id: int,
+    ctx: HostContext = Depends(require_host),
+    db: Session = Depends(get_db),
+) -> RecoveryCodeReset:
+    """参加者の復帰コードを再発行する。
+
+    部屋を ``rejoin_policy="code"`` にしていると、復帰コードを控え損ねた
+    解答者は同じ名前で戻れなくなる。出題者が救済できるようにしておく。
+    新しいコードは、これを要求した出題者にだけ返す。
+    """
+    participant = db.get(Participant, participant_id)
+    if participant is None or participant.room_id != ctx.room.id:
+        raise HTTPException(status_code=404, detail="参加者が見つかりません。")
+    code = generate_recovery_code()
+    participant.recovery_hash = hash_secret(code, iterations=60_000)
+    db.commit()
+    return RecoveryCodeReset(
+        participant_id=participant.id,
+        display_name=participant.display_name,
+        recovery_code=code,
     )
 
 

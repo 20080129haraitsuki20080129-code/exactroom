@@ -57,7 +57,7 @@ $("join-form").addEventListener("submit", async (event) => {
       participantId: result.participant_id,
       recoveryCode: result.recovery_code || null,
     });
-    location.href = "/solve";
+    location.href = "solve.html";
   } catch (err) {
     showError($("join-error"), err.message);
   } finally {
@@ -76,7 +76,7 @@ $("host-form").addEventListener("submit", async (event) => {
       { secret: $("host-secret").value }
     );
     session.setHost({ code: result.code, title: result.title, token: result.host_token });
-    location.href = "/host";
+    location.href = "host.html";
   } catch (err) {
     showError($("host-error"), err.message);
   }
@@ -101,7 +101,7 @@ $("create-form").addEventListener("submit", async (event) => {
     session.setHost({ code: result.code, title: result.title, token: result.host_token });
     setText($("create-ok"), `部屋コード ${result.code} を作成しました。管理画面へ移動します…`);
     setTimeout(() => {
-      location.href = "/host";
+      location.href = "host.html";
     }, 800);
   } catch (err) {
     showError($("create-error"), err.message);

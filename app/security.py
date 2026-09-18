@@ -95,10 +95,24 @@ def create_token(payload: dict, secret_key: str, ttl_seconds: int) -> str:
     return f"{encoded}.{_b64encode(signature)}"
 
 
+#: トークンに現れてよい文字 (base64url + 区切りのドット)
+_TOKEN_CHARS = frozenset(
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_=."
+)
+
+
 def verify_token(token: str, secret_key: str) -> dict:
-    """トークンを検証して payload を返す。失敗時は ``TokenError``。"""
+    """トークンを検証して payload を返す。失敗時は ``TokenError``。
+
+    不正な入力でも必ず ``TokenError`` になるようにする
+    (非 ASCII 文字などで例外が漏れると HTTP 500 になってしまう)。
+    """
     if not token or not isinstance(token, str) or token.count(".") != 1:
         raise TokenError("トークンの形式が不正です。")
+    if len(token) > 8192:
+        raise TokenError("トークンが長すぎます。")
+    if not _TOKEN_CHARS.issuperset(token):
+        raise TokenError("トークンに使用できない文字が含まれています。")
     encoded, signature_b64 = token.split(".")
     if len(encoded) > 4096:
         raise TokenError("トークンが長すぎます。")

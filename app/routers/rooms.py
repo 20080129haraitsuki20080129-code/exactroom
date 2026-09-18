@@ -175,6 +175,22 @@ def join_room(
         )
     ).scalar_one_or_none()
 
+    def _require_recovery(participant: Participant) -> None:
+        """既存の参加者として入り直すときの本人確認。
+
+        同時参加の競合で IntegrityError から復帰した場合も必ずここを通す
+        (通さないと rejoin_policy="code" の確認をすり抜けてしまう)。
+        """
+        if room.rejoin_policy != "code":
+            return
+        if not payload.recovery_code or not verify_secret(
+            payload.recovery_code.strip().upper(), participant.recovery_hash or ""
+        ):
+            raise HTTPException(
+                status_code=401,
+                detail="その名前は使用中です。復帰コードを入力するか別の名前にしてください。",
+            )
+
     recovery_code: str | None = None
     if existing is None:
         recovery_code = generate_recovery_code()
@@ -189,6 +205,8 @@ def join_room(
         try:
             db.commit()
         except IntegrityError:
+            # ほぼ同時に同じ名前で参加された。既存参加者として扱うが、
+            # 本人確認は通常の再参加と同じ扱いにする。
             db.rollback()
             participant = db.execute(
                 select(Participant).where(
@@ -196,20 +214,12 @@ def join_room(
                 )
             ).scalar_one()
             recovery_code = None
+            _require_recovery(participant)
         else:
             db.refresh(participant)
     else:
         participant = existing
-        if room.rejoin_policy == "code" and (
-            not payload.recovery_code
-            or not verify_secret(
-                payload.recovery_code.strip().upper(), participant.recovery_hash or ""
-            )
-        ):
-            raise HTTPException(
-                status_code=401,
-                detail="その名前は使用中です。復帰コードを入力するか別の名前にしてください。",
-            )
+        _require_recovery(participant)
         participant.display_name = display_name
         participant.last_seen_at = utcnow()
         db.commit()

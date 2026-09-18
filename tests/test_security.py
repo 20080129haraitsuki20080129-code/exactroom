@@ -302,3 +302,28 @@ def test_judge_never_raises():
     for payload in ["", "   ", "\x00", "\\", "}{", "\\left(", "|", "\\frac{}{}"]:
         result = judge(r"1", payload)
         assert result.verdict in ("AC", "WA", "PENDING")
+
+
+def test_non_ascii_token_is_rejected_not_crashed():
+    """非 ASCII のトークンで未処理例外 (HTTP 500) にならないこと。"""
+    for bad in ["あ.い", "abc.\u3042", "\u00e9.x", "a b.c"]:
+        with pytest.raises(TokenError):
+            verify_token(bad, "k" * 32)
+
+
+def test_non_ascii_bearer_header_returns_401(app_client):
+    """HTTP ヘッダは latin-1 で解釈されるので、非 ASCII バイトが届きうる。
+
+    以前はこれが ``UnicodeEncodeError`` になり HTTP 500 を返していた
+    (未認証のリクエストでサーバ内部エラーを起こせた)。
+    """
+    for raw in [b"Bearer \xe9.x", b"Bearer \xff\xfe.abc", b"Bearer caf\xe9.sig"]:
+        response = app_client.get(
+            "/api/host/problems", headers={"Authorization": raw}
+        )
+        assert response.status_code == 401, (raw, response.status_code, response.text)
+
+
+def test_token_length_is_bounded():
+    with pytest.raises(TokenError):
+        verify_token("a" * 9000 + ".b", "k" * 32)

@@ -5,7 +5,7 @@ const $ = (id) => document.getElementById(id);
 
 const host = session.getHost();
 if (!host || !host.token) {
-  location.replace("/#host");
+  location.replace("index.html#host");
 }
 
 let problems = [];
@@ -16,7 +16,11 @@ let autoTimer = null;
 setText($("room-meta"), host ? host.title || "(名前なし)" : "");
 setText($("room-code"), host ? host.code : "");
 
-const joinLink = host ? `${location.origin}/?code=${encodeURIComponent(host.code)}` : "";
+// 同一オリジン配信でも、静的ホスティング配下 (/static/host.html など) でも
+// 正しいリンクになるよう、現在のページからの相対で組み立てる。
+const joinLink = host
+  ? new URL(`index.html?code=${encodeURIComponent(host.code)}`, location.href).href
+  : "";
 $("join-link").value = joinLink;
 
 $("copy-link").addEventListener("click", async () => {
@@ -31,7 +35,7 @@ $("copy-link").addEventListener("click", async () => {
 
 $("logout").addEventListener("click", () => {
   session.clearHost();
-  location.href = "/";
+  location.href = "index.html";
 });
 
 function flashOk(message) {
@@ -43,7 +47,7 @@ function handleError(err) {
   if (err && err.status === 401) {
     session.clearHost();
     showError($("global-error"), "セッションの有効期限が切れました。ログインし直してください。");
-    setTimeout(() => location.replace("/#host"), 1500);
+    setTimeout(() => location.replace("index.html#host"), 1500);
     return;
   }
   showError($("global-error"), (err && err.message) || "エラーが発生しました。");
@@ -367,7 +371,7 @@ async function loadParticipants() {
     body.textContent = "";
     if (!participants.length) {
       body.appendChild(
-        el("tr", {}, [el("td", { attrs: { colspan: "6" }, className: "muted small", text: "参加者はまだいません。" })])
+        el("tr", {}, [el("td", { attrs: { colspan: "7" }, className: "muted small", text: "参加者はまだいません。" })])
       );
       return;
     }
@@ -380,6 +384,14 @@ async function loadParticipants() {
           el("td", { className: "small", text: String(person.ac_count) }),
           el("td", { className: "small nowrap", text: formatTime(person.created_at) }),
           el("td", { className: "small nowrap", text: formatTime(person.last_seen_at) }),
+          el("td", {}, [
+            el("button", {
+              className: "small",
+              text: "復帰コード再発行",
+              attrs: { type: "button" },
+              on: { click: () => resetRecoveryCode(person) },
+            }),
+          ]),
         ])
       );
     }
@@ -387,6 +399,26 @@ async function loadParticipants() {
     handleError(err);
   }
 }
+async function resetRecoveryCode(person) {
+  if (
+    !confirm(
+      `${person.display_name} さんの復帰コードを再発行します。古いコードは使えなくなります。よろしいですか?`
+    )
+  ) {
+    return;
+  }
+  try {
+    const result = await api.post(
+      `/api/host/participants/${person.id}/recovery-code`,
+      {},
+      host.token
+    );
+    flashOk(`${result.display_name} さんの新しい復帰コード: ${result.recovery_code}`);
+  } catch (err) {
+    handleError(err);
+  }
+}
+
 $("reload-participants").addEventListener("click", loadParticipants);
 
 /* ---------------- 設定 ---------------- */

@@ -101,6 +101,45 @@ def cost(expr) -> int:
     return total
 
 
+def admissible_values(symbol) -> tuple:
+    """その記号の仮定 (正・実数・整数など) を満たす標本値だけを返す。
+
+    ``assume_positive`` を付けた記号に負の値を代入すると、仮定の下では
+    等しい 2 式が「異なる」と見えてしまう (偽 WA)。代入は必ず
+    宣言した仮定の内側で行う。
+    """
+    allowed = []
+    for value in SAMPLE_VALUES:
+        if symbol.is_positive is True and value.is_positive is not True:
+            continue
+        if symbol.is_nonnegative is True and value.is_negative is True:
+            continue
+        if symbol.is_negative is True and value.is_negative is not True:
+            continue
+        if symbol.is_real is True and value.is_real is not True:
+            continue
+        if symbol.is_integer is True and value.is_integer is not True:
+            continue
+        if symbol.is_zero is True and value != 0:
+            continue
+        allowed.append(value)
+    return tuple(allowed) if allowed else (S(1),)
+
+
+def substitution_candidates(symbols: list, limit: int = MAX_SAMPLES) -> list[dict]:
+    """各記号の仮定を満たす代入候補を、決定的な順序で組み立てる。"""
+    per_symbol = [admissible_values(sym) for sym in symbols]
+    candidates: list[dict] = []
+    for i in range(limit):
+        subs = {}
+        for j, sym in enumerate(symbols):
+            values = per_symbol[j]
+            subs[sym] = values[(i + 3 * j) % len(values)]
+        if subs not in candidates:
+            candidates.append(subs)
+    return candidates
+
+
 def _safe(func, expr):
     try:
         out = func(expr)
@@ -393,15 +432,7 @@ def decide_zero(expr) -> str:
 
 
 def _sample_nonzero(expr, symbols: list) -> bool:
-    n = len(SAMPLE_VALUES)
-    tried = 0
-    for i in range(n):
-        if tried >= MAX_SAMPLES:
-            break
-        subs = {}
-        for j, sym in enumerate(symbols):
-            subs[sym] = SAMPLE_VALUES[(i + 3 * j) % n]
-        tried += 1
+    for subs in substitution_candidates(symbols):
         try:
             value = expr.subs(subs, simultaneous=True)
         except Exception:

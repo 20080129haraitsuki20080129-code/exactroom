@@ -13,7 +13,7 @@ from .errors import (  # noqa: F401
     UnsupportedLatexError,
 )
 from .parser import ParseOptions, parse_latex_answer  # noqa: F401
-from .runner import judge_isolated, reset_runner  # noqa: F401
+from .runner import configure_runner, judge_isolated, reset_runner  # noqa: F401
 
 __all__ = [
     "AC",
@@ -22,6 +22,7 @@ __all__ = [
     "JudgeResult",
     "judge",
     "judge_isolated",
+    "configure_runner",
     "reset_runner",
     "ParseOptions",
     "parse_latex_answer",
