@@ -1,0 +1,31 @@
+services:
+  exactroom:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # 本番では必ず変更すること
+      SECRET_KEY: "${SECRET_KEY:-local-development-secret-key-change-me-please}"
+      ENVIRONMENT: "${ENVIRONMENT:-development}"
+      DATABASE_URL: "sqlite:////app/data/exactroom.db"
+      JUDGE_ISOLATION: "process"
+      JUDGE_WORKERS: "2"
+      TRUST_PROXY_HEADERS: "false"
+    volumes:
+      - exactroom-data:/app/data
+    restart: unless-stopped
+
+  # PostgreSQL も試したい場合はこちらのコメントを外し、
+  # DATABASE_URL を postgresql+psycopg://exactroom:exactroom@db/exactroom にする
+  # db:
+  #   image: postgres:16-alpine
+  #   environment:
+  #     POSTGRES_USER: exactroom
+  #     POSTGRES_PASSWORD: exactroom
+  #     POSTGRES_DB: exactroom
+  #   volumes:
+  #     - exactroom-pg:/var/lib/postgresql/data
+
+volumes:
+  exactroom-data:
+  # exactroom-pg:

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>解答 — ExactRoom</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/css/app.css">
+<script src="/static/js/config.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/">ExactRoom</a>
+  <span class="meta" id="room-meta"></span>
+  <span class="spacer"></span>
+  <span class="meta" id="user-meta"></span>
+  <button type="button" class="small" id="leave">退出</button>
+</header>
+
+<main>
+  <div class="ok-box" id="recovery-note" role="status"></div>
+  <div class="error-box" id="global-error" role="alert"></div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h2>問題一覧</h2>
+      <ul class="list" id="problem-list"></ul>
+      <p class="small muted" id="problem-empty" hidden>まだ公開されている問題がありません。</p>
+      <div class="row" style="margin-top:12px">
+        <button type="button" class="small" id="reload">更新</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="card" id="problem-card" hidden>
+        <h2 id="problem-title"></h2>
+        <div class="math-preview" id="problem-statement"></div>
+        <p class="small" id="problem-note"></p>
+        <p class="small muted" id="parse-hints"></p>
+
+        <h3>解答を入力</h3>
+        <div id="answer-input"></div>
+        <div class="symbol-pad" id="symbol-pad"></div>
+
+        <h3>入力内容 (TeX)</h3>
+        <code class="mono small" id="tex-echo"></code>
+
+        <div class="row" style="margin-top:16px">
+          <button type="button" class="primary" id="submit">提出する</button>
+          <button type="button" class="small" id="clear">クリア</button>
+          <span class="small muted" id="submit-status"></span>
+        </div>
+
+        <div id="result-area"></div>
+
+        <h3>自分の提出履歴</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>時刻</th><th>判定</th><th>提出した答案</th></tr>
+            </thead>
+            <tbody id="history-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card" id="empty-card">
+        <p class="muted">左の一覧から問題を選んでください。</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <p class="small">
+    判定は厳密な記号計算のみで行われます。<span class="verdict PENDING">判定保留</span> は
+    「間違い」ではなく「システムが同値性を証明できなかった」という意味です。
+  </p>
+</footer>
+
+<script type="module" src="/static/js/solve.js"></script>
+</body>
+</html>

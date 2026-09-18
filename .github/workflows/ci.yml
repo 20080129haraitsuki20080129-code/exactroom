@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: 依存関係をインストール
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Lint (ruff)
+        run: ruff check app tests
+
+      - name: テスト
+        env:
+          SECRET_KEY: ci-secret-key-not-used-in-production-000000
+          ENVIRONMENT: test
+          JUDGE_ISOLATION: inline
+        run: pytest -q --cov=app --cov-report=term-missing
+
+      - name: 模範解答の秘匿テスト (単独でも必ず通ること)
+        env:
+          SECRET_KEY: ci-secret-key-not-used-in-production-000000
+          ENVIRONMENT: test
+          JUDGE_ISOLATION: inline
+        run: pytest tests/test_secrecy.py tests/test_security.py -q
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: イメージをビルド
+        run: docker build -t exactroom:ci .
+      - name: 起動確認
+        run: |
+          docker run -d --name exactroom-ci -p 8000:8000 \
+            -e SECRET_KEY=ci-secret-key-000000000000000000000000 \
+            -e ENVIRONMENT=production \
+            exactroom:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/healthz; then echo; exit 0; fi
+            sleep 2
+          done
+          docker logs exactroom-ci
+          exit 1

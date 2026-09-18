@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>出題者画面 — ExactRoom</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/css/app.css">
+<script src="/static/js/config.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/">ExactRoom</a>
+  <span class="meta" id="room-meta"></span>
+  <span class="spacer"></span>
+  <button type="button" class="small" id="copy-link">参加リンクをコピー</button>
+  <button type="button" class="small" id="logout">ログアウト</button>
+</header>
+
+<main>
+  <div class="error-box" id="global-error" role="alert"></div>
+  <div class="ok-box" id="global-ok" role="status"></div>
+
+  <div class="card">
+    <div class="row">
+      <div>
+        <div class="small muted">部屋コード</div>
+        <span class="code-chip" id="room-code"></span>
+      </div>
+      <div class="grow">
+        <div class="small muted">解答者に伝える参加リンク</div>
+        <input type="text" id="join-link" class="mono small" readonly>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button type="button" role="tab" id="tab-problems" aria-selected="true">問題</button>
+    <button type="button" role="tab" id="tab-submissions" aria-selected="false">提出一覧</button>
+    <button type="button" role="tab" id="tab-participants" aria-selected="false">参加者</button>
+    <button type="button" role="tab" id="tab-settings" aria-selected="false">設定</button>
+  </div>
+
+  <!-- ===== 問題 ===== -->
+  <section id="panel-problems">
+    <div class="grid-2">
+      <div class="card">
+        <h2>登録済みの問題</h2>
+        <ul class="list" id="problem-list"></ul>
+        <p class="small muted" id="problem-empty" hidden>まだ問題がありません。</p>
+        <div class="row" style="margin-top:12px">
+          <button type="button" class="primary small" id="new-problem">新しい問題</button>
+          <button type="button" class="small" id="reload-problems">更新</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 id="editor-title">新しい問題</h2>
+        <form id="problem-form" autocomplete="off">
+          <label for="p-title">問題タイトル</label>
+          <input type="text" id="p-title" maxlength="200" placeholder="例: 問1">
+
+          <label for="p-statement">問題文 (TeX)</label>
+          <textarea id="p-statement" class="mono" maxlength="2000"
+                    placeholder="例: x^2-1 \\text{ を因数分解せよ}"></textarea>
+          <div class="math-preview" id="p-statement-preview"></div>
+
+          <label for="p-note">補足 (プレーンテキスト)</label>
+          <textarea id="p-note" maxlength="2000" placeholder="例: 答えは因数分解した形で入力"></textarea>
+
+          <label for="p-answer">模範解答 (TeX) — 解答者には絶対に送信されません</label>
+          <textarea id="p-answer" class="mono" maxlength="500" required
+                    placeholder="例: (x-1)(x+1)"></textarea>
+          <div class="row" style="margin-top:8px">
+            <button type="button" class="small" id="check-answer">解釈を確認</button>
+            <span class="small" id="check-result"></span>
+          </div>
+          <div class="math-preview" id="p-answer-preview"></div>
+
+          <h3>判定の設定</h3>
+          <div class="check"><input type="checkbox" id="o-euler" checked><label for="o-euler">e を自然対数の底として扱う</label></div>
+          <div class="check"><input type="checkbox" id="o-imag" checked><label for="o-imag">i を虚数単位として扱う</label></div>
+          <div class="check"><input type="checkbox" id="o-real" checked><label for="o-real">変数を実数と仮定する</label></div>
+          <div class="check"><input type="checkbox" id="o-positive"><label for="o-positive">変数を正の実数と仮定する (対数・平方根の問題向け)</label></div>
+          <div class="check"><input type="checkbox" id="o-ordered"><label for="o-ordered">カンマ区切りの複数解は順序も一致させる</label></div>
+          <label for="o-log">底を省略した \log の底</label>
+          <select id="o-log">
+            <option value="e">e (自然対数)</option>
+            <option value="10">10 (常用対数)</option>
+          </select>
+          <div class="check" style="margin-top:12px"><input type="checkbox" id="p-published" checked><label for="p-published">解答者に公開する</label></div>
+
+          <div class="row" style="margin-top:16px">
+            <button type="submit" class="primary" id="save-problem">保存</button>
+            <button type="button" class="small" id="cancel-edit">キャンセル</button>
+            <button type="button" class="small danger" id="delete-problem" hidden>削除</button>
+          </div>
+          <div class="error-box" id="problem-error" role="alert"></div>
+        </form>
+
+        <div id="selftest-area" hidden>
+          <h3>この問題の判定を試す</h3>
+          <p class="small muted">解答者が書きそうな答案を入れて、AC になるか確認できます。</p>
+          <div class="row">
+            <input type="text" id="selftest-input" class="mono grow" maxlength="500" placeholder="例: x^2-1">
+            <button type="button" class="small" id="selftest-run">判定</button>
+          </div>
+          <div id="selftest-result"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 提出一覧 ===== -->
+  <section id="panel-submissions" hidden>
+    <div class="card">
+      <h2>提出一覧</h2>
+      <div class="row">
+        <select id="filter-problem" class="grow"><option value="">すべての問題</option></select>
+        <select id="filter-verdict">
+          <option value="">すべての判定</option>
+          <option value="AC">AC のみ</option>
+          <option value="WA">WA のみ</option>
+          <option value="PENDING">判定保留のみ</option>
+        </select>
+        <button type="button" class="small" id="reload-submissions">更新</button>
+        <label class="check" style="margin:0"><input type="checkbox" id="auto-refresh" checked> 自動更新 (10秒)</label>
+        <button type="button" class="small" id="download-csv">CSV ダウンロード</button>
+      </div>
+      <p class="small muted" id="submission-summary"></p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>#</th><th>提出時刻</th><th>提出者</th><th>問題</th><th>提出答案 (TeX)</th><th>判定</th><th>根拠</th><th>所要</th></tr>
+          </thead>
+          <tbody id="submission-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 参加者 ===== -->
+  <section id="panel-participants" hidden>
+    <div class="card">
+      <h2>参加者</h2>
+      <div class="row"><button type="button" class="small" id="reload-participants">更新</button></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>名前</th><th>提出数</th><th>AC 数</th><th>参加</th><th>最終アクセス</th></tr></thead>
+          <tbody id="participant-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 設定 ===== -->
+  <section id="panel-settings" hidden>
+    <div class="card">
+      <h2>部屋の設定</h2>
+      <form id="settings-form" autocomplete="off">
+        <label for="s-title">部屋の名前</label>
+        <input type="text" id="s-title" maxlength="120">
+        <div class="check"><input type="checkbox" id="s-open"><label for="s-open">部屋を開けておく (閉じると参加・提出ができなくなります)</label></div>
+        <label for="s-rejoin">同じ名前での再参加</label>
+        <select id="s-rejoin">
+          <option value="open">名前だけで再参加できる (かんたん)</option>
+          <option value="code">復帰コードが必要 (なりすまし対策)</option>
+        </select>
+        <label for="s-max">1 問あたりの提出回数上限 (0 で無制限)</label>
+        <input type="number" id="s-max" min="0" max="1000">
+        <label for="s-cooldown">連続提出の最小間隔 (秒)</label>
+        <input type="number" id="s-cooldown" min="0" max="600">
+        <div class="row" style="margin-top:16px">
+          <button type="submit" class="primary">保存</button>
+        </div>
+        <div class="error-box" id="settings-error" role="alert"></div>
+      </form>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p class="small">
+    模範解答はサーバ内でのみ使用され、解答者側の HTML / JavaScript / API 応答には一切含まれません。
+  </p>
+</footer>
+
+<script type="module" src="/static/js/host.js"></script>
+</body>
+</html>

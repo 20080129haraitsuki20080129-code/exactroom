@@ -1,0 +1,28 @@
+[project]
+name = "exactroom"
+version = "1.0.0"
+description = "TeX 数式の厳密自動判定 Web アプリ (Python + SymPy)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = [".venv", "venv", "data", "__pycache__"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM"]
+ignore = [
+  "E501",   # 行長は formatter に任せる
+  "B008",   # FastAPI の Depends() をデフォルト引数に使うため
+  "SIM108", # 三項演算子への機械的な書き換えは読みにくくなることがある
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B011", "SIM117"]

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="TeX で書いた答案を SymPy で厳密に自動判定する、ログイン不要の教室用 Web アプリ">
+<meta name="color-scheme" content="light dark">
+<title>ExactRoom — 数式の厳密自動判定</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/css/app.css">
+<script src="/static/js/config.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/">ExactRoom</a>
+  <span class="spacer"></span>
+  <span class="meta">数式の厳密自動判定</span>
+</header>
+
+<main>
+  <div class="card">
+    <h2>数式を厳密に自動判定します</h2>
+    <p class="small muted">
+      出題者が TeX で登録した模範解答と、解答者が入力した答案が
+      <strong>数学的に同値かどうか</strong>を Python + SymPy で厳密に判定します。
+      数値近似は一切使いません。同値だと証明できたときだけ <span class="verdict AC">AC</span>、
+      同値でないと証明できたときだけ <span class="verdict WA">WA</span>、
+      どちらも証明できなければ <span class="verdict PENDING">判定保留</span> になります。
+      模範解答がブラウザ側に送られることはありません。
+    </p>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button type="button" role="tab" id="tab-solve" aria-selected="true" aria-controls="panel-solve">解答する</button>
+    <button type="button" role="tab" id="tab-host" aria-selected="false" aria-controls="panel-host">出題する</button>
+  </div>
+
+  <section id="panel-solve" role="tabpanel" aria-labelledby="tab-solve">
+    <div class="card">
+      <h2>部屋に参加する</h2>
+      <form id="join-form" autocomplete="off">
+        <label for="join-code">部屋コード</label>
+        <input type="text" id="join-code" class="mono" inputmode="latin" autocapitalize="characters"
+               maxlength="16" placeholder="例: K7M2QD" required>
+        <label for="join-name">あなたの名前</label>
+        <input type="text" id="join-name" maxlength="24" placeholder="例: 山田太郎" required>
+        <details>
+          <summary class="small muted" style="margin-top:12px;cursor:pointer">別の端末から戻る場合 (復帰コード)</summary>
+          <label for="join-recovery">復帰コード</label>
+          <input type="text" id="join-recovery" class="mono" maxlength="32" placeholder="例: K7M2-QD84">
+          <p class="hint">最初に参加したときに表示されたコードです。同じ名前で入り直すときに使います。</p>
+        </details>
+        <div class="row" style="margin-top:16px">
+          <button type="submit" class="primary" id="join-submit">参加する</button>
+        </div>
+        <div class="error-box" id="join-error" role="alert"></div>
+      </form>
+    </div>
+  </section>
+
+  <section id="panel-host" role="tabpanel" aria-labelledby="tab-host" hidden>
+    <div class="card">
+      <h2>出題者としてログイン</h2>
+      <form id="host-form" autocomplete="off">
+        <label for="host-code">部屋コード</label>
+        <input type="text" id="host-code" class="mono" inputmode="latin" autocapitalize="characters"
+               maxlength="16" placeholder="例: K7M2QD" required>
+        <label for="host-secret">秘密キー</label>
+        <input type="password" id="host-secret" maxlength="128" required>
+        <div class="row" style="margin-top:16px">
+          <button type="submit" class="primary">ログイン</button>
+        </div>
+        <div class="error-box" id="host-error" role="alert"></div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>新しい部屋を作る</h2>
+      <form id="create-form" autocomplete="off">
+        <label for="create-title">部屋の名前</label>
+        <input type="text" id="create-title" maxlength="120" placeholder="例: 数学II 三角関数 小テスト">
+        <label for="create-secret">秘密キー (8 文字以上)</label>
+        <input type="password" id="create-secret" minlength="8" maxlength="128" required>
+        <p class="hint">出題者はこのキーで入ります。忘れると部屋を管理できなくなります。</p>
+        <details>
+          <summary class="small muted" style="margin-top:12px;cursor:pointer">サーバが合言葉を要求する場合</summary>
+          <label for="create-token">部屋作成の合言葉</label>
+          <input type="text" id="create-token" maxlength="128">
+        </details>
+        <div class="row" style="margin-top:16px">
+          <button type="submit" class="primary">部屋を作る</button>
+        </div>
+        <div class="error-box" id="create-error" role="alert"></div>
+        <div class="ok-box" id="create-ok" role="status"></div>
+      </form>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p>
+    ExactRoom — 判定は Python + SymPy による厳密な記号計算のみで行われます (浮動小数点・数値近似は不使用)。
+    外部 AI / 有料 API は使用していません。
+  </p>
+</footer>
+
+<script type="module" src="/static/js/home.js"></script>
+</body>
+</html>

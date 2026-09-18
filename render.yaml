@@ -1,0 +1,27 @@
+# Render (Free) 用の Blueprint
+# 無料 Web Service はディスクが永続化されないため、DATABASE_URL には
+# Neon / Supabase など無料の PostgreSQL を指定してください。
+services:
+  - type: web
+    name: exactroom
+    runtime: python
+    plan: free
+    region: singapore
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ENVIRONMENT
+        value: production
+      - key: TRUST_PROXY_HEADERS
+        value: "true"
+      - key: JUDGE_ISOLATION
+        value: process
+      - key: JUDGE_WORKERS
+        value: "1"
+      - key: DATABASE_URL
+        sync: false   # Neon などの接続文字列をダッシュボードで設定する

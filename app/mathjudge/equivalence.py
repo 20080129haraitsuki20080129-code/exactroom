@@ -1,0 +1,406 @@
+"""模範解答と提出答案の数学的同値性を厳密に判定する。
+
+判定は 3 値:
+
+* ``AC``      … 厳密に同値であることを **証明できた**
+* ``WA``      … 厳密に同値でないことを **証明できた**
+* ``PENDING`` … どちらも証明できなかった (判定保留)
+
+``reason`` には判定の根拠コードが入る。提出者に返してよいのは
+``verdict`` と、提出者自身の入力に関する ``student_message`` だけであり、
+``reason`` / ``detail`` は出題者だけが見る。
+"""
+
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass, field
+
+import sympy as sp
+from sympy import S
+
+from .errors import MathError
+from .exactzero import NONZERO, ZERO, decide_zero, prove_equal
+from .parser import ParsedAnswer, ParseOptions, parse_latex_answer
+
+AC = "AC"
+WA = "WA"
+PENDING = "PENDING"
+
+#: 集合・リストの要素数の上限 (総当たり比較の爆発を防ぐ)
+MAX_ELEMENTS = 12
+
+
+@dataclass(slots=True)
+class JudgeResult:
+    verdict: str
+    reason: str
+    #: 出題者向けの補足 (提出者には返さない)
+    detail: str = ""
+    #: 提出者に見せてよいメッセージ (自分の入力に関するものだけ)
+    student_message: str = ""
+    elapsed_ms: int = 0
+    meta: dict = field(default_factory=dict)
+
+    def to_dict(self) -> dict:
+        return {
+            "verdict": self.verdict,
+            "reason": self.reason,
+            "detail": self.detail,
+            "student_message": self.student_message,
+            "elapsed_ms": self.elapsed_ms,
+            "meta": dict(self.meta),
+        }
+
+
+# --------------------------------------------------------------------------
+# 個々の要素の比較
+# --------------------------------------------------------------------------
+
+
+def _relation_family(rel) -> str:
+    if isinstance(rel, sp.Equality):
+        return "eq"
+    if isinstance(rel, sp.Unequality):
+        return "ne"
+    if isinstance(rel, sp.StrictLessThan | sp.StrictGreaterThan):
+        return "strict"
+    if isinstance(rel, sp.LessThan | sp.GreaterThan):
+        return "weak"
+    return "other"
+
+
+def _normalize_relation(rel):
+    """``lhs op rhs`` を ``d op' 0`` の形に正規化する。
+
+    Returns:
+        ``(family, direction, d)``
+        family: "eq" / "ne" / "strict" / "weak"
+        direction: 0 (=, ≠) / +1 (d > 0, d >= 0) / -1 は使わず符号反転で吸収
+    """
+    family = _relation_family(rel)
+    lhs, rhs = rel.args[0], rel.args[1]
+    diff = sp.Add(lhs, sp.Mul(S(-1), rhs))
+    if family in ("eq", "ne"):
+        return family, 0, diff
+    if isinstance(rel, sp.StrictLessThan | sp.LessThan):
+        # lhs < rhs  <=>  rhs - lhs > 0
+        return family, 1, sp.Mul(S(-1), diff)
+    return family, 1, diff
+
+
+def _compare_relations(a, b) -> str:
+    """2 つの関係式が同値かを判定する。"""
+    fam_a, _, da = _normalize_relation(a)
+    fam_b, _, db = _normalize_relation(b)
+    if fam_a != fam_b:
+        return WA  # = と ≠、≦ と < は別物
+    # d_a と d_b が「0 でない定数倍」の関係にあれば同値
+    ratio = None
+    try:
+        ratio = sp.cancel(sp.together(sp.Mul(da, sp.Pow(db, S(-1)))))
+    except Exception:
+        ratio = None
+    if ratio is not None and not ratio.free_symbols and not ratio.has(sp.zoo, sp.nan):
+        status = decide_zero(ratio)
+        if status == NONZERO:
+            if fam_a in ("eq", "ne"):
+                return AC
+            # 不等号は正の定数倍のときのみ同値 (向きが保たれる)
+            simplified = sp.simplify(ratio)
+            if simplified.is_Rational and simplified > 0:
+                return AC
+            if simplified.is_Rational and simplified < 0:
+                return WA
+            return PENDING
+        if status == ZERO:
+            return PENDING
+    # 反例探索: 片方だけを満たす厳密な点を見つければ非同値が確定する
+    if _relation_witness(da, db):
+        return WA
+    if prove_equal(da, db) == ZERO:
+        return AC
+    return PENDING
+
+
+def _relation_witness(da, db) -> bool:
+    """``da = 0`` と ``db = 0`` の解集合が異なることを示す点を探す。"""
+    from .exactzero import SAMPLE_VALUES
+
+    symbols = sorted(da.free_symbols | db.free_symbols, key=lambda s: s.name)
+    if not symbols:
+        za, zb = decide_zero(da), decide_zero(db)
+        return ZERO in (za, zb) and NONZERO in (za, zb)
+    candidates: list[dict] = []
+    n = len(SAMPLE_VALUES)
+    for i in range(min(n, 16)):
+        candidates.append(
+            {sym: SAMPLE_VALUES[(i + 3 * j) % n] for j, sym in enumerate(symbols)}
+        )
+    # 片方の根を反例候補に加える (1 変数の低次多項式のみ、厳密解)
+    if len(symbols) == 1:
+        sym = symbols[0]
+        for expr in (da, db):
+            try:
+                poly = sp.Poly(sp.cancel(sp.together(expr)).as_numer_denom()[0], sym)
+            except Exception:
+                continue
+            if poly.degree() > 4:
+                continue
+            try:
+                roots = sp.roots(poly)
+            except Exception:
+                continue
+            for root in roots:
+                if root.free_symbols or root.has(sp.zoo, sp.nan):
+                    continue
+                candidates.append({sym: root})
+    for subs in candidates:
+        try:
+            va = da.subs(subs, simultaneous=True)
+            vb = db.subs(subs, simultaneous=True)
+        except Exception:
+            continue
+        if va.has(sp.zoo, sp.nan) or vb.has(sp.zoo, sp.nan):
+            continue
+        sa, sb = decide_zero(va), decide_zero(vb)
+        if {sa, sb} == {ZERO, NONZERO}:
+            return True
+    return False
+
+
+def _compare_sets(a: sp.Set, b: sp.Set) -> str:
+    if a is S.EmptySet or b is S.EmptySet:
+        if a is S.EmptySet and b is S.EmptySet:
+            return AC
+        return WA
+    if not (isinstance(a, sp.FiniteSet) and isinstance(b, sp.FiniteSet)):
+        return PENDING
+    ea, eb = list(a.args), list(b.args)
+    if len(ea) > MAX_ELEMENTS or len(eb) > MAX_ELEMENTS:
+        return PENDING
+    return _compare_collections(ea, eb, ordered=False)
+
+
+def _compare_collections(ea: list, eb: list, ordered: bool) -> str:
+    if ordered:
+        if len(ea) != len(eb):
+            return WA
+        statuses = [_compare_items(x, y) for x, y in zip(ea, eb, strict=False)]
+        if all(s == AC for s in statuses):
+            return AC
+        if any(s == WA for s in statuses):
+            return WA
+        return PENDING
+
+    ea = list(ea)
+    eb = list(eb)
+    if len(ea) > MAX_ELEMENTS or len(eb) > MAX_ELEMENTS:
+        return PENDING
+
+    matrix = [[_compare_items(x, y) for y in eb] for x in ea]
+
+    # 「一方にしか現れない要素」が確定すれば非同値
+    for row in matrix:
+        if row and all(s == WA for s in row):
+            return WA
+    for col in range(len(eb)):
+        column = [matrix[r][col] for r in range(len(ea))]
+        if column and all(s == WA for s in column):
+            return WA
+    if any(PENDING in row for row in matrix):
+        return PENDING
+
+    # ここまで来れば全ペアの等価判定が確定している。
+    # 重複を潰したうえで集合として一致するかを見る。
+    def dedup(elements: list) -> list:
+        out: list = []
+        for e in elements:
+            if not any(_compare_items(e, o) == AC for o in out):
+                out.append(e)
+        return out
+
+    ua, ub = dedup(ea), dedup(eb)
+    if len(ua) != len(ub):
+        return WA
+    for e in ua:
+        if not any(_compare_items(e, o) == AC for o in ub):
+            return WA
+    return AC
+
+
+def _compare_items(a, b) -> str:
+    """式・関係式・集合の 1 要素どうしを比較する。"""
+    a_is_rel = isinstance(a, sp.core.relational.Relational)
+    b_is_rel = isinstance(b, sp.core.relational.Relational)
+    a_is_and = isinstance(a, sp.And)
+    b_is_and = isinstance(b, sp.And)
+    a_is_set = isinstance(a, sp.Set)
+    b_is_set = isinstance(b, sp.Set)
+
+    if a_is_set or b_is_set:
+        if a_is_set and b_is_set:
+            return _compare_sets(a, b)
+        return WA
+    if a_is_and or b_is_and:
+        if a_is_and and b_is_and:
+            return _compare_collections(list(a.args), list(b.args), ordered=False)
+        return WA
+    if a_is_rel or b_is_rel:
+        if a_is_rel and b_is_rel:
+            return _compare_relations(a, b)
+        return WA
+
+    status = prove_equal(a, b)
+    if status == ZERO:
+        return AC
+    if status == NONZERO:
+        return WA
+    return PENDING
+
+
+# --------------------------------------------------------------------------
+# 公開 API
+# --------------------------------------------------------------------------
+
+_KIND_ORDER = {"expr": 0, "rel": 1, "set": 2, "list": 2}
+
+
+def compare_parsed(
+    model: ParsedAnswer, submitted: ParsedAnswer, ordered_list: bool = False
+) -> tuple[str, str]:
+    """解析済みの解答どうしを比較する。
+
+    Returns:
+        ``(verdict, reason)``
+    """
+    mk, sk = model.kind, submitted.kind
+    # 集合とカンマ区切りリストは同じ「複数解」とみなす
+    if _KIND_ORDER[mk] != _KIND_ORDER[sk]:
+        return WA, "kind_mismatch"
+
+    if _KIND_ORDER[mk] == 2:
+        ma = model.single if mk == "set" else None
+        sa = submitted.single if sk == "set" else None
+        melems = list(ma.args) if isinstance(ma, sp.FiniteSet) else (
+            [] if ma is S.EmptySet else list(model.items)
+        )
+        selems = list(sa.args) if isinstance(sa, sp.FiniteSet) else (
+            [] if sa is S.EmptySet else list(submitted.items)
+        )
+        if mk == "set" and ma is S.EmptySet:
+            melems = []
+        if sk == "set" and sa is S.EmptySet:
+            selems = []
+        if not melems and not selems:
+            return AC, "empty_sets"
+        if bool(melems) != bool(selems):
+            return WA, "cardinality"
+        verdict = _compare_collections(melems, selems, ordered=ordered_list)
+        return verdict, {AC: "collection_equal", WA: "collection_differs"}.get(
+            verdict, "collection_undecided"
+        )
+
+    verdict = _compare_items(model.single, submitted.single)
+    if mk == "rel":
+        reason = {AC: "relation_equivalent", WA: "relation_differs"}.get(
+            verdict, "relation_undecided"
+        )
+    else:
+        reason = {AC: "expression_equal", WA: "expression_differs"}.get(
+            verdict, "expression_undecided"
+        )
+    return verdict, reason
+
+
+def judge(
+    model_latex: str,
+    submitted_latex: str,
+    options: dict | None = None,
+) -> JudgeResult:
+    """模範解答 (TeX) と提出答案 (TeX) を突き合わせる。
+
+    この関数は **別プロセス** で呼ばれることを想定している
+    (``app/mathjudge/runner.py`` を参照)。
+    """
+    started = time.monotonic()
+    opts = dict(options or {})
+    ordered_list = bool(opts.pop("ordered_list", False))
+    parse_opts = ParseOptions.from_dict(opts)
+
+    def finish(result: JudgeResult) -> JudgeResult:
+        result.elapsed_ms = int((time.monotonic() - started) * 1000)
+        return result
+
+    # --- 提出答案のパース (エラー内容は提出者に返してよい) ---
+    try:
+        submitted = parse_latex_answer(submitted_latex, parse_opts)
+    except MathError as exc:
+        return finish(
+            JudgeResult(
+                verdict=PENDING,
+                reason="submission_parse_error",
+                detail=f"提出答案を解釈できません: {exc.message}",
+                student_message=exc.message,
+                meta={"error_code": exc.code, "position": exc.position},
+            )
+        )
+    except Exception:
+        return finish(
+            JudgeResult(
+                verdict=PENDING,
+                reason="submission_parse_error",
+                detail="提出答案を解釈できません。",
+                student_message="解答を数式として解釈できませんでした。",
+            )
+        )
+
+    # --- 模範解答のパース (エラー内容は絶対に提出者へ返さない) ---
+    try:
+        model = parse_latex_answer(model_latex, parse_opts)
+    except MathError as exc:
+        return finish(
+            JudgeResult(
+                verdict=PENDING,
+                reason="model_parse_error",
+                detail=f"模範解答を解釈できません: {exc.message}",
+                student_message="この問題は現在採点できません。出題者にお問い合わせください。",
+                meta={"error_code": exc.code},
+            )
+        )
+    except Exception:
+        return finish(
+            JudgeResult(
+                verdict=PENDING,
+                reason="model_parse_error",
+                detail="模範解答を解釈できません。",
+                student_message="この問題は現在採点できません。出題者にお問い合わせください。",
+            )
+        )
+
+    try:
+        verdict, reason = compare_parsed(model, submitted, ordered_list=ordered_list)
+    except Exception as exc:  # pragma: no cover - 防御的
+        return finish(
+            JudgeResult(
+                verdict=PENDING,
+                reason="internal_error",
+                detail=f"判定中に例外が発生しました: {type(exc).__name__}",
+                student_message="判定に失敗しました。時間をおいて再送してください。",
+            )
+        )
+
+    messages = {
+        AC: "厳密に同値であることを確認しました。",
+        WA: "厳密に同値でないことを確認しました。",
+        PENDING: "同値かどうかを厳密に判定できませんでした (判定保留)。",
+    }
+    return finish(
+        JudgeResult(
+            verdict=verdict,
+            reason=reason,
+            detail=f"kind={model.kind}/{submitted.kind} reason={reason}",
+            student_message=messages[verdict],
+            meta={"model_kind": model.kind, "submitted_kind": submitted.kind},
+        )
+    )

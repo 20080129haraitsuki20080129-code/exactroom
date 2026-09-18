@@ -1,0 +1,12 @@
+# ---- runtime ----
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+sqlalchemy==2.0.36
+pydantic==2.10.4
+pydantic-settings==2.7.0
+sympy==1.13.3
+python-multipart==0.0.20
+
+# PostgreSQL (Neon / Supabase / self-host) を使う場合のみ必要。
+# SQLite だけで動かすなら削除してよい。
+psycopg[binary]==3.2.3
