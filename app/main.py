@@ -98,6 +98,11 @@ def create_app() -> FastAPI:
             )
         if request.url.path.startswith("/api/"):
             response.headers.setdefault("Cache-Control", "no-store")
+        else:
+            # 毎回 ETag で確認させる。これが無いと、アプリを更新したときに
+            # 「古い JS + 新しい HTML」の組み合わせになって画面が壊れる。
+            # 変更が無ければ 304 が返るだけなので通信量はほぼ増えない。
+            response.headers.setdefault("Cache-Control", "no-cache")
         return response
 
     app.include_router(rooms.router)

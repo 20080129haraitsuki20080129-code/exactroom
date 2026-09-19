@@ -19,28 +19,21 @@
 <header class="topbar">
   <a class="brand" href="index.html">ExactRoom</a>
   <span class="spacer"></span>
-  <span class="meta">数式の厳密自動判定</span>
 </header>
 
 <main>
-  <div class="card">
-    <h2>数式を厳密に自動判定します</h2>
-    <p class="small muted">
-      出題者が TeX で登録した模範解答と、解答者が入力した答案が
-      <strong>数学的に同値かどうか</strong>を Python + SymPy で厳密に判定します。
-      数値近似は一切使いません。同値だと証明できたときだけ <span class="verdict AC">AC</span>、
-      同値でないと証明できたときだけ <span class="verdict WA">WA</span>、
-      どちらも証明できなければ <span class="verdict PENDING">判定保留</span> になります。
-      模範解答がブラウザ側に送られることはありません。
-    </p>
+  <div class="role-choice" role="group" aria-label="役割を選ぶ">
+    <button type="button" class="role-card" id="role-solve" aria-pressed="true">
+      <span class="role-title">解答する</span>
+      <span class="role-sub">部屋コードと名前で参加</span>
+    </button>
+    <button type="button" class="role-card" id="role-host" aria-pressed="false">
+      <span class="role-title">出題する</span>
+      <span class="role-sub">部屋コードと秘密キーで管理</span>
+    </button>
   </div>
 
-  <div class="tabs" role="tablist">
-    <button type="button" role="tab" id="tab-solve" aria-selected="true" aria-controls="panel-solve">解答する</button>
-    <button type="button" role="tab" id="tab-host" aria-selected="false" aria-controls="panel-host">出題する</button>
-  </div>
-
-  <section id="panel-solve" role="tabpanel" aria-labelledby="tab-solve">
+  <section id="panel-solve">
     <div class="card">
       <h2>部屋に参加する</h2>
       <form id="join-form" autocomplete="off">
@@ -63,7 +56,7 @@
     </div>
   </section>
 
-  <section id="panel-host" role="tabpanel" aria-labelledby="tab-host" hidden>
+  <section id="panel-host" hidden>
     <div class="card">
       <h2>出題者としてログイン</h2>
       <form id="host-form" autocomplete="off">
@@ -102,12 +95,6 @@
   </section>
 </main>
 
-<footer>
-  <p>
-    ExactRoom — 判定は Python + SymPy による厳密な記号計算のみで行われます (浮動小数点・数値近似は不使用)。
-    外部 AI / 有料 API は使用していません。
-  </p>
-</footer>
 
 <script type="module" src="/static/js/home.js"></script>
 </body>

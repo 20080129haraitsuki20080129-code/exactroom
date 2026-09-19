@@ -343,7 +343,7 @@ pytest -q
 | `tests/test_security.py` | eval 不使用・数値評価不使用・認証・レート制限・DoS 耐性 |
 | `tests/test_runner.py` | プロセス分離、タイムアウト、設定の反映、巻き添え時の再試行 |
 
-合計 239 件。10 秒以内に完走します。
+合計 243 件。10 秒以内に完走します。
 
 CI(GitHub Actions)では Python 3.11 / 3.12 で lint + テストを実行します。
 

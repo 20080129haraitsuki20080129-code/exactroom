@@ -454,3 +454,11 @@ def test_light_migration_adds_missing_columns(tmp_path, monkeypatch):
 
     db_module.reset_engine()
     config.get_settings.cache_clear()
+
+
+@pytest.mark.parametrize("path", ["/static/js/home.js", "/static/css/app.css", "/", "/solve"])
+def test_static_assets_are_revalidated(app_client, path):
+    """更新後に「古い JS + 新しい HTML」にならないよう、毎回 ETag で確認させる。"""
+    response = app_client.get(path)
+    assert response.status_code == 200
+    assert response.headers.get("cache-control") == "no-cache", path

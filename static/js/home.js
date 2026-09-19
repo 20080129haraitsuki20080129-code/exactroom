@@ -2,11 +2,11 @@ import { api, session, showError, setText } from "./api.js";
 
 const $ = (id) => document.getElementById(id);
 
-/* ---- タブ ---- */
-function selectTab(name) {
+/* ---- 役割の選択 ---- */
+function selectRole(name) {
   for (const key of ["solve", "host"]) {
     const isActive = key === name;
-    $(`tab-${key}`).setAttribute("aria-selected", String(isActive));
+    $(`role-${key}`).setAttribute("aria-pressed", String(isActive));
     $(`panel-${key}`).hidden = !isActive;
   }
   try {
@@ -16,9 +16,9 @@ function selectTab(name) {
   }
 }
 
-$("tab-solve").addEventListener("click", () => selectTab("solve"));
-$("tab-host").addEventListener("click", () => selectTab("host"));
-if (location.hash === "#host") selectTab("host");
+$("role-solve").addEventListener("click", () => selectRole("solve"));
+$("role-host").addEventListener("click", () => selectRole("host"));
+if (location.hash === "#host") selectRole("host");
 
 /* URL の ?code= を自動入力 (出題者が配る参加リンク用) */
 const params = new URLSearchParams(location.search);
