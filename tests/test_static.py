@@ -111,3 +111,22 @@ def test_cdn_has_fallback_candidates():
         block = re.search(rf"{key}:\s*\[(.*?)\]", config, re.S)
         assert block, f"{key} が無い"
         assert block.group(1).count("https://") >= 2, f"{key} の候補が 1 つしかない"
+
+
+def test_polling_is_paused_when_tab_hidden():
+    """タブが見えていないときはポーリングしない。"""
+    for name in ("solve.js", "host.js"):
+        source = strip_comments(read("js", name))
+        assert "visibilityState" in source, f"{name} に可視性チェックが無い"
+
+
+def test_math_input_is_created_once():
+    """問題を素早く切り替えても math-field を二重生成しない。"""
+    source = strip_comments(read("js", "solve.js"))
+    assert "mathInputPromise" in source
+
+
+def test_virtual_keyboard_spacing_is_handled():
+    """MathLive の仮想キーボードが提出ボタンを覆わないようにする。"""
+    source = strip_comments(read("js", "solve.js"))
+    assert "geometrychange" in source

@@ -282,53 +282,105 @@ async function loadProblems() {
 }
 
 /* ---------------- 提出一覧 ---------------- */
-function buildQuery() {
+const PAGE_SIZE = 200;
+//: 表示中の提出 (新しい順)。「さらに古い提出を読む」で後ろに継ぎ足す。
+let submissionRows = [];
+//: これ以上古い提出が残っているか (最後に取得したページが満杯だったか)
+let hasOlderSubmissions = false;
+
+function buildQuery(beforeId) {
   const params = new URLSearchParams();
   const problemId = $("filter-problem").value;
   const verdict = $("filter-verdict").value;
   if (problemId) params.set("problem_id", problemId);
   if (verdict) params.set("verdict", verdict);
-  params.set("limit", "300");
+  if (beforeId) params.set("before_id", String(beforeId));
+  params.set("limit", String(PAGE_SIZE));
   return params.toString();
 }
 
 async function loadSubmissions() {
   try {
-    const rows = await api.get(`/api/host/submissions?${buildQuery()}`, host.token);
-    const body = $("submission-body");
-    body.textContent = "";
-    const counts = { AC: 0, WA: 0, PENDING: 0 };
-    for (const row of rows) counts[row.verdict] = (counts[row.verdict] || 0) + 1;
-    setText(
-      $("submission-summary"),
-      `${rows.length} 件 — AC ${counts.AC} / WA ${counts.WA} / 判定保留 ${counts.PENDING}`
-    );
-    if (!rows.length) {
-      body.appendChild(
-        el("tr", {}, [el("td", { attrs: { colspan: "8" }, className: "muted small", text: "提出はまだありません。" })])
-      );
-      return;
-    }
-    for (const row of rows) {
-      body.appendChild(
-        el("tr", {}, [
-          el("td", { className: "small", text: String(row.id) }),
-          el("td", { className: "small nowrap", text: formatTime(row.created_at) }),
-          el("td", { className: "small", text: row.participant_name }),
-          el("td", { className: "small", text: row.problem_title || `#${row.problem_id}` }),
-          el("td", { className: "tex small", text: row.answer_latex }),
-          el("td", {}, [el("span", { className: `verdict ${row.verdict}`, text: row.verdict === "PENDING" ? "保留" : row.verdict })]),
-          el("td", { className: "small muted", text: row.reason }),
-          el("td", { className: "small muted nowrap", text: `${row.elapsed_ms} ms` }),
-        ])
-      );
-    }
+    const rows = await api.get(`/api/host/submissions?${buildQuery(0)}`, host.token);
+    submissionRows = rows;
+    hasOlderSubmissions = rows.length === PAGE_SIZE;
+    renderSubmissions();
   } catch (err) {
     handleError(err);
   }
 }
 
+async function loadOlderSubmissions() {
+  if (!submissionRows.length) return;
+  const oldestId = submissionRows[submissionRows.length - 1].id;
+  $("load-older").disabled = true;
+  try {
+    const older = await api.get(
+      `/api/host/submissions?${buildQuery(oldestId)}`,
+      host.token
+    );
+    hasOlderSubmissions = older.length === PAGE_SIZE;
+    if (!older.length) {
+      flashOk("これ以上古い提出はありません。");
+    } else {
+      submissionRows = submissionRows.concat(older);
+    }
+    renderSubmissions();
+  } catch (err) {
+    handleError(err);
+    $("load-older").disabled = false;
+  }
+}
+
+function renderSubmissions() {
+  const rows = submissionRows;
+  const body = $("submission-body");
+  body.textContent = "";
+  $("load-older").disabled = !hasOlderSubmissions;
+
+  const counts = { AC: 0, WA: 0, PENDING: 0 };
+  for (const row of rows) counts[row.verdict] = (counts[row.verdict] || 0) + 1;
+  setText(
+    $("submission-summary"),
+    `${rows.length} 件${hasOlderSubmissions ? " (さらに古い提出あり)" : ""} — ` +
+      `AC ${counts.AC} / WA ${counts.WA} / 判定保留 ${counts.PENDING}`
+  );
+
+  if (!rows.length) {
+    body.appendChild(
+      el("tr", {}, [
+        el("td", {
+          attrs: { colspan: "8" },
+          className: "muted small",
+          text: "提出はまだありません。",
+        }),
+      ])
+    );
+    return;
+  }
+  for (const row of rows) {
+    body.appendChild(
+      el("tr", {}, [
+        el("td", { className: "small", text: String(row.id) }),
+        el("td", { className: "small nowrap", text: formatTime(row.created_at) }),
+        el("td", { className: "small", text: row.participant_name }),
+        el("td", { className: "small", text: row.problem_title || `#${row.problem_id}` }),
+        el("td", { className: "tex small", text: row.answer_latex }),
+        el("td", {}, [
+          el("span", {
+            className: `verdict ${row.verdict}`,
+            text: row.verdict === "PENDING" ? "保留" : row.verdict,
+          }),
+        ]),
+        el("td", { className: "small muted", text: row.reason }),
+        el("td", { className: "small muted nowrap", text: `${row.elapsed_ms} ms` }),
+      ])
+    );
+  }
+}
+
 $("reload-submissions").addEventListener("click", loadSubmissions);
+$("load-older").addEventListener("click", loadOlderSubmissions);
 $("filter-problem").addEventListener("change", loadSubmissions);
 $("filter-verdict").addEventListener("change", loadSubmissions);
 
@@ -336,7 +388,9 @@ function setAutoRefresh(enabled) {
   if (autoTimer) clearInterval(autoTimer);
   autoTimer = null;
   if (enabled) autoTimer = setInterval(() => {
-    if (!$("panel-submissions").hidden) loadSubmissions();
+    if (!$("panel-submissions").hidden && document.visibilityState === "visible") {
+      loadSubmissions();
+    }
   }, 10000);
 }
 $("auto-refresh").addEventListener("change", (event) => setAutoRefresh(event.target.checked));
@@ -427,6 +481,7 @@ async function loadSettings() {
     const settings = await api.get("/api/host/settings", host.token);
     $("s-title").value = settings.title || "";
     $("s-open").checked = Boolean(settings.is_open);
+    $("s-new-participants").checked = Boolean(settings.allow_new_participants);
     $("s-rejoin").value = settings.rejoin_policy || "open";
     $("s-max").value = settings.max_submissions_per_problem;
     $("s-cooldown").value = settings.submission_cooldown_sec;
@@ -444,6 +499,7 @@ $("settings-form").addEventListener("submit", async (event) => {
       {
         title: $("s-title").value.trim(),
         is_open: $("s-open").checked,
+        allow_new_participants: $("s-new-participants").checked,
         rejoin_policy: $("s-rejoin").value,
         max_submissions_per_problem: Number($("s-max").value || 0),
         submission_cooldown_sec: Number($("s-cooldown").value || 0),

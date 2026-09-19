@@ -12,7 +12,8 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, text
+from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.orm import Session, sessionmaker
 
 from .config import get_settings
@@ -77,9 +78,47 @@ def get_session_factory() -> sessionmaker:
     return _SessionLocal
 
 
+#: 後から追加した列 (既存 DB を壊さずに追随させる)
+_ADDED_COLUMNS: dict[str, dict[str, str]] = {
+    "rooms": {
+        "allow_new_participants": "BOOLEAN NOT NULL DEFAULT 1",
+    },
+}
+
+
+def _existing_columns(connection, table: str) -> set[str]:
+    inspector = sa_inspect(connection)
+    if table not in inspector.get_table_names():
+        return set()
+    return {col["name"] for col in inspector.get_columns(table)}
+
+
+def _apply_light_migrations(engine) -> None:
+    """``create_all`` では追加されない「後から足した列」を補う。
+
+    Alembic を入れるほどではない規模なので、欠けている列だけを
+    ``ALTER TABLE ... ADD COLUMN`` する。SQLite / PostgreSQL 共通。
+    """
+    is_postgres = engine.url.get_backend_name().startswith("postgres")
+    with engine.begin() as connection:
+        for table, columns in _ADDED_COLUMNS.items():
+            present = _existing_columns(connection, table)
+            if not present:
+                continue
+            for name, ddl in columns.items():
+                if name in present:
+                    continue
+                definition = ddl.replace("DEFAULT 1", "DEFAULT TRUE") if is_postgres else ddl
+                connection.execute(
+                    text(f"ALTER TABLE {table} ADD COLUMN {name} {definition}")
+                )
+
+
 def init_db() -> None:
     """テーブルを作成する (存在すれば何もしない)。"""
-    Base.metadata.create_all(bind=get_engine())
+    engine = get_engine()
+    Base.metadata.create_all(bind=engine)
+    _apply_light_migrations(engine)
 
 
 def reset_engine() -> None:

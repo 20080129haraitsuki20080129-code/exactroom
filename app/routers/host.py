@@ -105,6 +105,7 @@ def get_settings_view(ctx: HostContext = Depends(require_host)) -> dict:
         "code": room.code,
         "title": room.title,
         "is_open": room.is_open,
+        "allow_new_participants": room.allow_new_participants,
         "rejoin_policy": room.rejoin_policy,
         "max_submissions_per_problem": room.max_submissions_per_problem,
         "submission_cooldown_sec": room.submission_cooldown_sec,
@@ -125,6 +126,8 @@ def update_settings(
     if "is_open" in data:
         room.is_open = bool(data["is_open"])
         room.closed_at = None if room.is_open else utcnow()
+    if "allow_new_participants" in data:
+        room.allow_new_participants = bool(data["allow_new_participants"])
     if "rejoin_policy" in data:
         room.rejoin_policy = data["rejoin_policy"]
     if "max_submissions_per_problem" in data:
@@ -338,17 +341,23 @@ def list_submissions(
     participant_id: int | None = None,
     verdict: str | None = None,
     since_id: int = 0,
+    before_id: int = 0,
     limit: int = 200,
     ctx: HostContext = Depends(require_host),
     db: Session = Depends(get_db),
 ) -> list[HostSubmission]:
+    """提出一覧。
+
+    * 既定は新しい順。``before_id`` を渡すとそれより古いものを辿れる
+      (古い提出が上限 500 件の外に埋もれないようにするため)。
+    * ``since_id`` はポーリング用。取りこぼしが出ないよう **古い順** に返す。
+    """
     limit = max(1, min(limit, 500))
     stmt = (
         select(Submission, Problem.title, Participant.display_name)
         .join(Problem, Problem.id == Submission.problem_id)
         .join(Participant, Participant.id == Submission.participant_id)
         .where(Submission.room_id == ctx.room.id)
-        .order_by(Submission.id.desc())
         .limit(limit)
     )
     if problem_id:
@@ -358,7 +367,12 @@ def list_submissions(
     if verdict in ("AC", "WA", "PENDING"):
         stmt = stmt.where(Submission.verdict == verdict)
     if since_id:
-        stmt = stmt.where(Submission.id > since_id)
+        # 新しい順 + LIMIT だと、間に大量に入ったとき中間が抜け落ちる
+        stmt = stmt.where(Submission.id > since_id).order_by(Submission.id.asc())
+    else:
+        if before_id:
+            stmt = stmt.where(Submission.id < before_id)
+        stmt = stmt.order_by(Submission.id.desc())
     rows = db.execute(stmt).all()
     return [
         HostSubmission(

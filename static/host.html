@@ -127,6 +127,7 @@
         <button type="button" class="small" id="reload-submissions">更新</button>
         <label class="check" style="margin:0"><input type="checkbox" id="auto-refresh" checked> 自動更新 (10秒)</label>
         <button type="button" class="small" id="download-csv">CSV ダウンロード</button>
+        <button type="button" class="small" id="load-older">さらに古い提出を読む</button>
       </div>
       <p class="small muted" id="submission-summary"></p>
       <div class="table-wrap">
@@ -162,6 +163,7 @@
         <label for="s-title">部屋の名前</label>
         <input type="text" id="s-title" maxlength="120">
         <div class="check"><input type="checkbox" id="s-open"><label for="s-open">部屋を開けておく (閉じると参加・提出ができなくなります)</label></div>
+        <div class="check"><input type="checkbox" id="s-new-participants"><label for="s-new-participants">新しい名前での参加を受け付ける (締め切ると、別名で提出回数の上限をリセットされるのを防げます)</label></div>
         <label for="s-rejoin">同じ名前での再参加</label>
         <select id="s-rejoin">
           <option value="open">名前だけで再参加できる (かんたん)</option>

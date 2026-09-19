@@ -193,6 +193,12 @@ def join_room(
 
     recovery_code: str | None = None
     if existing is None:
+        if not room.allow_new_participants:
+            raise HTTPException(
+                status_code=403,
+                detail="この部屋は新しい参加者の受付を締め切っています。"
+                "すでに参加した名前で入り直してください。",
+            )
         recovery_code = generate_recovery_code()
         participant = Participant(
             room_id=room.id,

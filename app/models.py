@@ -44,6 +44,8 @@ class Room(Base):
     is_open: Mapped[bool] = mapped_column(Boolean, default=True)
     #: "open" … 名前だけで再参加できる / "code" … 復帰コードが必要
     rejoin_policy: Mapped[str] = mapped_column(String(8), default="open")
+    #: 新しい名前での参加を受け付けるか (試験開始後に締め切るため)
+    allow_new_participants: Mapped[bool] = mapped_column(Boolean, default=True)
     #: 1 問あたりの提出上限 (0 で無制限)
     max_submissions_per_problem: Mapped[int] = mapped_column(Integer, default=0)
     #: 連続提出の最小間隔 (秒)

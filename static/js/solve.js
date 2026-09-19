@@ -11,6 +11,7 @@ if (!solver || !solver.token) {
 let problems = [];
 let current = null;
 let mathInput = null;
+let mathInputPromise = null;
 
 setText($("room-meta"), solver ? `${solver.title || "(名前なし)"} / ${solver.code}` : "");
 setText($("user-meta"), solver ? solver.name : "");
@@ -114,16 +115,47 @@ async function selectProblem(problemId) {
   $("result-area").textContent = "";
   await renderMath($("problem-statement"), current.statement_latex);
 
+  // 問題を素早く切り替えると createMathInput が二重に走り、
+  // 提出時に古い方の入力欄を読んでしまうことがあった。
+  // 生成中の Promise を共有して 1 つだけ作る。
   if (!mathInput) {
-    mathInput = await createMathInput($("answer-input"), {
-      placeholder: "ここに解答を入力",
-      onChange: (value) => setText($("tex-echo"), value),
-    });
-    buildSymbolPad($("symbol-pad"), mathInput);
+    if (!mathInputPromise) {
+      mathInputPromise = createMathInput($("answer-input"), {
+        placeholder: "ここに解答を入力",
+        onChange: (value) => setText($("tex-echo"), value),
+      }).then((input) => {
+        mathInput = input;
+        buildSymbolPad($("symbol-pad"), input);
+        setupVirtualKeyboardSpacing(input);
+        return input;
+      });
+    }
+    await mathInputPromise;
   }
   mathInput.setValue("");
   setText($("tex-echo"), "");
   await loadHistory();
+}
+
+/** MathLive の仮想キーボードの高さぶん、下に余白を作る。 */
+function setupVirtualKeyboardSpacing(input) {
+  const keyboard = window.mathVirtualKeyboard;
+  if (!keyboard || !input.isRich) return;
+  const apply = () => {
+    const height = keyboard.boundingRect ? keyboard.boundingRect.height : 0;
+    document.body.style.paddingBottom = height ? `${Math.round(height) + 16}px` : "";
+    if (height && document.activeElement === input.element) {
+      $("submit").scrollIntoView({ block: "nearest" });
+    }
+  };
+  try {
+    keyboard.addEventListener("geometrychange", apply);
+  } catch {
+    /* 対応していない版では何もしない */
+  }
+  input.element.addEventListener("blur", () => {
+    document.body.style.paddingBottom = "";
+  });
 }
 
 function verdictLabel(verdict) {
@@ -231,5 +263,11 @@ async function loadProblems() {
 
 if (solver && solver.token) {
   loadProblems();
-  setInterval(loadProblems, 30000);
+  // タブが見えていないときはポーリングしない (無駄な通信と電池消費を避ける)
+  setInterval(() => {
+    if (document.visibilityState === "visible") loadProblems();
+  }, 30000);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") loadProblems();
+  });
 }

@@ -320,3 +320,135 @@ def test_pages_are_served_under_both_layouts(app_client, path):
     """同一オリジン配信でも、静的ホスティング配下の相対リンクでも開けること。"""
     response = app_client.get(path)
     assert response.status_code == 200, path
+
+
+def test_submission_limit_survives_concurrent_requests(app_client, host, solver):
+    """同時提出で提出回数の上限を突破できないこと。
+
+    以前は「数えてから挿入する」構造だったため、同時に 10 件投げると
+    上限 3 でも 10 件すべて受理されていた。
+    """
+    import threading
+
+    problem = make_problem(host)
+    host.patch(
+        "/api/host/settings",
+        json={"max_submissions_per_problem": 3, "submission_cooldown_sec": 0},
+    )
+
+    codes: list[int] = []
+    lock = threading.Lock()
+
+    def submit(index: int) -> None:
+        response = solver.post(
+            "/api/solve/submissions",
+            json={"problem_id": problem["id"], "answer_latex": str(index)},
+        )
+        with lock:
+            codes.append(response.status_code)
+
+    threads = [threading.Thread(target=submit, args=(i,)) for i in range(10)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert codes.count(201) == 3, codes
+    stored = host.get("/api/host/submissions").json()
+    assert len(stored) == 3
+
+
+def test_allow_new_participants_can_be_closed(app_client, host, room):
+    """新規参加を締め切れること (別名で提出上限をリセットされるのを防ぐ)。"""
+    app_client.post(f"/api/rooms/{room['code']}/join", json={"display_name": "先客"})
+    host.patch("/api/host/settings", json={"allow_new_participants": False})
+
+    blocked = app_client.post(
+        f"/api/rooms/{room['code']}/join", json={"display_name": "あとから来た人"}
+    )
+    assert blocked.status_code == 403
+    assert "締め切" in blocked.json()["detail"]
+
+    # すでに参加した名前なら入り直せる
+    assert (
+        app_client.post(
+            f"/api/rooms/{room['code']}/join", json={"display_name": "先客"}
+        ).status_code
+        == 200
+    )
+
+    host.patch("/api/host/settings", json={"allow_new_participants": True})
+    assert (
+        app_client.post(
+            f"/api/rooms/{room['code']}/join", json={"display_name": "あとから来た人"}
+        ).status_code
+        == 200
+    )
+
+
+def test_submission_paging(app_client, host, solver):
+    """古い提出まで辿れること / since_id に取りこぼしが無いこと。"""
+    problem = make_problem(host)
+    host.patch("/api/host/settings", json={"submission_cooldown_sec": 0})
+    for i in range(6):
+        solver.post(
+            "/api/solve/submissions",
+            json={"problem_id": problem["id"], "answer_latex": str(i)},
+        )
+
+    page1 = host.get("/api/host/submissions?limit=4").json()
+    ids1 = [row["id"] for row in page1]
+    assert len(ids1) == 4
+    assert ids1 == sorted(ids1, reverse=True), "既定は新しい順"
+
+    page2 = host.get(f"/api/host/submissions?limit=4&before_id={ids1[-1]}").json()
+    ids2 = [row["id"] for row in page2]
+    assert ids2, "古い提出を辿れない"
+    assert max(ids2) < min(ids1)
+
+    ascending = [
+        row["id"] for row in host.get("/api/host/submissions?since_id=2&limit=3").json()
+    ]
+    assert ascending == sorted(ascending), "since_id は古い順でないと取りこぼす"
+    assert all(i > 2 for i in ascending)
+
+
+def test_light_migration_adds_missing_columns(tmp_path, monkeypatch):
+    """後から足した列を既存 DB に追加できること (Alembic を使わない運用)。"""
+    import sqlalchemy as sa
+
+    from app import config
+    from app import db as db_module
+
+    db_path = tmp_path / "legacy.db"
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_path}")
+    config.get_settings.cache_clear()
+    db_module.reset_engine()
+
+    engine = db_module.get_engine()
+    with engine.begin() as connection:
+        connection.execute(
+            sa.text(
+                """CREATE TABLE rooms (
+                    id INTEGER PRIMARY KEY, code VARCHAR(16), title VARCHAR(120),
+                    secret_hash VARCHAR(255), is_open BOOLEAN, rejoin_policy VARCHAR(8),
+                    max_submissions_per_problem INTEGER, submission_cooldown_sec INTEGER,
+                    created_at TIMESTAMP, updated_at TIMESTAMP, closed_at TIMESTAMP)"""
+            )
+        )
+        connection.execute(
+            sa.text("INSERT INTO rooms (id, code, title) VALUES (1, 'OLDROM', '旧部屋')")
+        )
+
+    db_module.init_db()
+
+    with engine.connect() as connection:
+        columns = {row[1] for row in connection.execute(sa.text("PRAGMA table_info(rooms)"))}
+        assert "allow_new_participants" in columns
+        value = connection.execute(
+            sa.text("SELECT allow_new_participants FROM rooms WHERE id = 1")
+        ).scalar()
+        assert value in (1, True)
+
+    db_module.reset_engine()
+    config.get_settings.cache_clear()

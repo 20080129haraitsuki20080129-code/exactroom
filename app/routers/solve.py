@@ -172,6 +172,25 @@ def create_submission(
     db.commit()
     db.refresh(submission)
 
+    # 上限の最終確認。最初のカウントと挿入の間に別のリクエストが入り込むと
+    # 上限を超えられてしまうので、採番済みの id で自分の順位を数え直す。
+    # id は一意かつ単調なので、同時に何件来てもちょうど limit 件だけが残る。
+    if limit:
+        rank = db.execute(
+            select(func.count(Submission.id)).where(
+                Submission.problem_id == problem.id,
+                Submission.participant_id == ctx.participant.id,
+                Submission.id <= submission.id,
+            )
+        ).scalar_one()
+        if rank > limit:
+            db.delete(submission)
+            db.commit()
+            raise HTTPException(
+                status_code=429, detail="この問題の提出回数の上限に達しました。"
+            )
+        used = rank - 1
+
     message = VERDICT_MESSAGE[verdict]
     student_message = str(result.get("student_message", ""))
     if verdict == "PENDING" and student_message:

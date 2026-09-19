@@ -136,6 +136,7 @@ class JoinResponse(BaseModel):
 class RoomSettingsUpdate(BaseModel):
     title: str | None = Field(default=None, max_length=LIMITS["title"])
     is_open: bool | None = None
+    allow_new_participants: bool | None = None
     rejoin_policy: str | None = None
     max_submissions_per_problem: int | None = Field(default=None, ge=0, le=1000)
     submission_cooldown_sec: int | None = Field(default=None, ge=0, le=600)
