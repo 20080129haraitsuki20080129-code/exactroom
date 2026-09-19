@@ -96,6 +96,7 @@ $("create-form").addEventListener("submit", async (event) => {
     const result = await api.post("/api/rooms", {
       title: $("create-title").value.trim(),
       secret,
+      code: normalizeCode($("create-code").value),
       creation_token: $("create-token").value.trim(),
     });
     session.setHost({ code: result.code, title: result.title, token: result.host_token });

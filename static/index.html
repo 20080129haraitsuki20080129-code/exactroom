@@ -77,6 +77,12 @@
       <form id="create-form" autocomplete="off">
         <label for="create-title">部屋の名前</label>
         <input type="text" id="create-title" maxlength="120" placeholder="例: 数学II 三角関数 小テスト">
+        <label for="create-code">部屋コード (空欄なら自動で決まります)</label>
+        <input type="text" id="create-code" class="mono" inputmode="latin"
+               autocapitalize="characters" maxlength="16" placeholder="例: 1234 / SUGAKU2">
+        <p class="hint">英数字 3 文字以上。同じコードを知っている人が同じ部屋に入ります。
+          短く推測しやすいコードにすると、無関係な人に入られることがあります。</p>
+
         <label for="create-secret">秘密キー (8 文字以上)</label>
         <input type="password" id="create-secret" minlength="8" maxlength="128" required>
         <p class="hint">出題者はこのキーで入ります。忘れると部屋を管理できなくなります。</p>

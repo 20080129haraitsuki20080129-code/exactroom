@@ -37,6 +37,7 @@ from ..security import (
     hash_secret,
     name_key,
     normalize_display_name,
+    normalize_room_code,
     verify_secret,
 )
 
@@ -75,6 +76,49 @@ def create_room(
 
     secret_hash = hash_secret(payload.secret)
     title = (payload.title or "").strip()[: settings.max_title_chars]
+
+    # 出題者がコードを指定した場合は、そのコードで作る (同じコード = 同じ部屋)
+    wanted = normalize_room_code(payload.code)
+    if payload.code.strip() and not wanted:
+        raise HTTPException(
+            status_code=400,
+            detail="部屋コードには英数字を使ってください。",
+        )
+    if wanted:
+        if len(wanted) < settings.room_code_min_length:
+            raise HTTPException(
+                status_code=400,
+                detail=f"部屋コードは {settings.room_code_min_length} 文字以上にしてください。",
+            )
+        existing = db.execute(
+            select(Room).where(Room.code == wanted)
+        ).scalar_one_or_none()
+        if existing is not None:
+            raise HTTPException(
+                status_code=409,
+                detail=f"部屋コード {wanted} はすでに使われています。"
+                "その部屋の出題者なら「出題する」からログインしてください。",
+            )
+        room = Room(
+            code=wanted,
+            title=title,
+            secret_hash=secret_hash,
+            submission_cooldown_sec=settings.submission_cooldown_sec,
+        )
+        db.add(room)
+        try:
+            db.commit()
+        except IntegrityError as exc:
+            db.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail=f"部屋コード {wanted} はすでに使われています。",
+            ) from exc
+        db.refresh(room)
+        token, ttl = _host_token(room, settings)
+        return RoomCreated(
+            code=room.code, title=room.title, host_token=token, expires_in=ttl
+        )
 
     for _ in range(10):
         room = Room(

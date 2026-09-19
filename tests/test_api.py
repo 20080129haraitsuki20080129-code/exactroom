@@ -462,3 +462,149 @@ def test_static_assets_are_revalidated(app_client, path):
     response = app_client.get(path)
     assert response.status_code == 200
     assert response.headers.get("cache-control") == "no-cache", path
+
+
+# --------------------------------------------------------------------------
+# 部屋コードを自分で決める / 複数の部屋を同時に使う
+# --------------------------------------------------------------------------
+
+
+def test_create_room_with_chosen_code(app_client):
+    """出題者が部屋コードを指定できること。"""
+    response = app_client.post(
+        "/api/rooms",
+        json={"title": "1 組", "secret": "kumi-ichi-secret", "code": "1234"},
+    )
+    assert response.status_code == 201, response.text
+    assert response.json()["code"] == "1234"
+    assert app_client.get("/api/rooms/1234").json()["title"] == "1 組"
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("sugaku1", "SUGAKU1"),
+        (" a-b c1 ", "ABC1"),
+        ("ｓｕｕｇａｋｕ", "SUUGAKU"),
+    ],
+)
+def test_chosen_code_is_normalized(app_client, raw, expected):
+    """小文字・全角・記号を吸収して同じコードとして扱うこと。"""
+    response = app_client.post(
+        "/api/rooms", json={"secret": "secret-key-12345", "code": raw}
+    )
+    assert response.status_code == 201, response.text
+    assert response.json()["code"] == expected
+    assert app_client.get(f"/api/rooms/{raw}").status_code == 200
+
+
+def test_chosen_code_must_be_free(app_client):
+    app_client.post("/api/rooms", json={"secret": "secret-key-12345", "code": "MATH1"})
+    duplicate = app_client.post(
+        "/api/rooms", json={"secret": "another-secret-1", "code": "math1"}
+    )
+    assert duplicate.status_code == 409
+    assert "すでに使われて" in duplicate.json()["detail"]
+
+
+@pytest.mark.parametrize("code", ["12", "A", "---", "！！！"])
+def test_chosen_code_is_validated(app_client, code):
+    response = app_client.post(
+        "/api/rooms", json={"secret": "secret-key-12345", "code": code}
+    )
+    assert response.status_code == 400, (code, response.text)
+
+
+def test_many_people_share_one_room(app_client):
+    """同じ部屋コードなら何人でも同じ部屋に入れること。"""
+    from tests.conftest import Actor
+
+    room = app_client.post(
+        "/api/rooms", json={"title": "合同", "secret": "goudou-secret-1", "code": "5000"}
+    ).json()
+    host = Actor(app_client, room["host_token"])
+    problem = make_problem(host)
+    host.patch("/api/host/settings", json={"submission_cooldown_sec": 0})
+
+    solvers = []
+    for i in range(12):
+        joined = app_client.post(
+            "/api/rooms/5000/join", json={"display_name": f"生徒{i:02d}"}
+        )
+        assert joined.status_code == 200, joined.text
+        solvers.append(Actor(app_client, joined.json()["token"]))
+
+    for i, solver in enumerate(solvers):
+        answer = r"x^2-1" if i % 2 == 0 else r"x^2+1"
+        result = solver.post(
+            "/api/solve/submissions",
+            json={"problem_id": problem["id"], "answer_latex": answer},
+        )
+        assert result.status_code == 201, result.text
+        assert result.json()["verdict"] == ("AC" if i % 2 == 0 else "WA")
+
+    participants = host.get("/api/host/participants").json()
+    assert len(participants) == 12
+    submissions = host.get("/api/host/submissions").json()
+    assert len(submissions) == 12
+    assert sum(1 for s in submissions if s["verdict"] == "AC") == 6
+
+
+def test_rooms_run_independently_at_the_same_time(app_client):
+    """別の部屋コードなら、同時に使っても互いに影響しないこと。"""
+    from tests.conftest import Actor
+
+    rooms = {}
+    for code, title, answer in [
+        ("101", "1 年 1 組", r"(x-1)(x+1)"),
+        ("102", "1 年 2 組", r"\sin x"),
+    ]:
+        created = app_client.post(
+            "/api/rooms",
+            json={"title": title, "secret": f"secret-for-{code}", "code": code},
+        )
+        assert created.status_code == 201, created.text
+        host = Actor(app_client, created.json()["host_token"])
+        problem = make_problem(host, answer_latex=answer, title=f"{title} の問題")
+        host.patch("/api/host/settings", json={"submission_cooldown_sec": 0})
+        joined = app_client.post(
+            f"/api/rooms/{code}/join", json={"display_name": "同姓同名"}
+        ).json()
+        rooms[code] = {
+            "host": host,
+            "problem": problem,
+            "solver": Actor(app_client, joined["token"]),
+        }
+
+    # 同じ名前でも部屋が違えば別人として扱われる
+    assert (
+        rooms["101"]["solver"].headers["Authorization"]
+        != rooms["102"]["solver"].headers["Authorization"]
+    )
+
+    # それぞれの部屋の模範解答で判定される
+    r1 = rooms["101"]["solver"].post(
+        "/api/solve/submissions",
+        json={"problem_id": rooms["101"]["problem"]["id"], "answer_latex": r"x^2-1"},
+    ).json()
+    r2 = rooms["102"]["solver"].post(
+        "/api/solve/submissions",
+        json={"problem_id": rooms["102"]["problem"]["id"], "answer_latex": r"x^2-1"},
+    ).json()
+    assert r1["verdict"] == "AC"
+    assert r2["verdict"] == "WA"
+
+    # 相手の部屋の問題は見えないし、提出もできない
+    for me, other in (("101", "102"), ("102", "101")):
+        visible = rooms[me]["solver"].get("/api/solve/problems").json()
+        assert [p["id"] for p in visible] == [rooms[me]["problem"]["id"]]
+        blocked = rooms[me]["solver"].post(
+            "/api/solve/submissions",
+            json={"problem_id": rooms[other]["problem"]["id"], "answer_latex": "1"},
+        )
+        assert blocked.status_code == 404
+
+        # 出題者から見える提出も自分の部屋のものだけ
+        mine = rooms[me]["host"].get("/api/host/submissions").json()
+        assert len(mine) == 1
+        assert mine[0]["problem_id"] == rooms[me]["problem"]["id"]

@@ -54,6 +54,9 @@ class Settings(BaseSettings):
 
     # ---- 部屋 ----
     room_code_length: int = 6
+    #: 出題者が自分で部屋コードを決める場合の最短の長さ。
+    #: 短いほど推測されやすいが、"101" のような教室番号を使えるようにしてある。
+    room_code_min_length: int = 3
     #: 空でなければ、部屋作成時にこの合言葉が必要 (公開サーバの荒らし対策)
     room_creation_token: str = ""
     allow_room_creation: bool = True

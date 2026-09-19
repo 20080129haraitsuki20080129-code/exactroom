@@ -88,6 +88,8 @@ class RoomCreate(BaseModel):
     title: str = Field(default="", max_length=LIMITS["title"])
     secret: str = Field(min_length=8, max_length=128)
     creation_token: str = Field(default="", max_length=128)
+    #: 出題者が自分で決める部屋コード。空ならサーバが自動発行する。
+    code: str = Field(default="", max_length=16)
 
 
 class RoomCreated(BaseModel):
