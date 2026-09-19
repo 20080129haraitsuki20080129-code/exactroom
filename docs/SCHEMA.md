@@ -4,6 +4,11 @@ SQLAlchemy 2.0 の宣言的マッピングで定義しています(`app/models.p
 起動時に `Base.metadata.create_all()` が走るため、マイグレーションツールは不要です。
 SQLite と PostgreSQL のどちらでも同じ定義がそのまま使えます。
 
+`create_all` は**既存テーブルに列を足しません**。後から追加した列は
+`app/db.py` の `_ADDED_COLUMNS` に登録してあり、起動時に不足分だけを
+`ALTER TABLE ... ADD COLUMN` します(Alembic を入れるほどの規模ではないため)。
+列を追加したら、この表に 1 行足してください。
+
 ## ER 図
 
 ```
@@ -26,6 +31,7 @@ rooms 1 ──< problems 1 ──< submissions >── 1 participants
 | `title` | VARCHAR(120) | `''` | 部屋の名前 |
 | `secret_hash` | VARCHAR(255) | NOT NULL | 出題者用秘密キーの PBKDF2-HMAC-SHA256 ハッシュ。**平文は保存しない** |
 | `is_open` | BOOLEAN | `true` | 閉じると参加・提出ができなくなる |
+| `allow_new_participants` | BOOLEAN | `true` | `false` にすると**新しい名前**での参加を受け付けない(既存の参加者は入り直せる)。別名で提出上限をリセットされるのを防ぐ |
 | `rejoin_policy` | VARCHAR(8) | `'open'` | `open`=名前だけで再参加 / `code`=復帰コードが必要 |
 | `max_submissions_per_problem` | INTEGER | `0` | 1 問あたりの提出上限(0 で無制限) |
 | `submission_cooldown_sec` | INTEGER | `3` | 連続提出の最小間隔(秒) |
@@ -125,6 +131,7 @@ CREATE TABLE rooms (
   title                       VARCHAR(120) NOT NULL DEFAULT '',
   secret_hash                 VARCHAR(255) NOT NULL,
   is_open                     BOOLEAN NOT NULL DEFAULT TRUE,
+  allow_new_participants      BOOLEAN NOT NULL DEFAULT TRUE,
   rejoin_policy               VARCHAR(8) NOT NULL DEFAULT 'open',
   max_submissions_per_problem INTEGER NOT NULL DEFAULT 0,
   submission_cooldown_sec     INTEGER NOT NULL DEFAULT 3,
