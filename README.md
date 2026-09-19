@@ -343,7 +343,7 @@ pytest -q
 | `tests/test_security.py` | eval 不使用・数値評価不使用・認証・レート制限・DoS 耐性 |
 | `tests/test_runner.py` | プロセス分離、タイムアウト、設定の反映、巻き添え時の再試行 |
 
-合計 229 件。10 秒以内に完走します。
+合計 239 件。10 秒以内に完走します。
 
 CI(GitHub Actions)では Python 3.11 / 3.12 で lint + テストを実行します。
 
@@ -352,6 +352,10 @@ CI(GitHub Actions)では Python 3.11 / 3.12 で lint + テストを実行しま�
 ## 運用ツール(サーバ不要 / CLI)
 
 ```bash
+# インターネットに一時公開する (Cloudflare Tunnel、アカウント登録不要)
+brew install cloudflared
+./scripts/serve_public.sh
+
 # 出題前に、別解が AC になるかまとめて確認する
 python scripts/judge_cli.py '\frac{1}{2}' '0.5' '\frac{2}{4}' '0.6'
 python scripts/judge_cli.py --assume-positive '\ln(x^2)' '2\ln x'
@@ -373,7 +377,7 @@ python scripts/admin.py delete-room ABC123 --yes
 
 | 構成 | 費用 | 備考 |
 | --- | --- | --- |
-| **自宅 PC + Cloudflare Tunnel** | 0 円 | どこにも縛られない。常時起動できるなら最有力 |
+| **自宅 PC + Cloudflare Tunnel** | 0 円 | アカウント登録も不要。`./scripts/serve_public.sh` 一発で公開できる |
 | **Render(Free) + Neon(Free Postgres)** | 0 円 | クレジットカード不要。15 分で自動スリープ |
 | **Hugging Face Spaces(Docker, Free)** | 0 円 | Dockerfile をそのまま使えます |
 | **Koyeb など** | 要確認 | 無料枠の条件は変わりやすい。Fly.io は 2024 年に無料割当を廃止済み |

@@ -162,6 +162,24 @@ def create_app() -> FastAPI:
         def favicon() -> FileResponse:
             return FileResponse(STATIC_DIR / "favicon.svg", media_type="image/svg+xml")
 
+        # ブラウザが自動で取りに来る定番パス (404 をログに残さない)
+        @app.get("/apple-touch-icon.png", include_in_schema=False)
+        @app.get("/apple-touch-icon-precomposed.png", include_in_schema=False)
+        def apple_touch_icon() -> FileResponse:
+            return FileResponse(
+                STATIC_DIR / "apple-touch-icon.png", media_type="image/png"
+            )
+
+        @app.get("/robots.txt", include_in_schema=False)
+        def robots() -> FileResponse:
+            return FileResponse(STATIC_DIR / "robots.txt", media_type="text/plain")
+
+        @app.get("/manifest.json", include_in_schema=False)
+        def manifest() -> FileResponse:
+            return FileResponse(
+                STATIC_DIR / "manifest.json", media_type="application/manifest+json"
+            )
+
     return app
 
 

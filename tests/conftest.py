@@ -15,10 +15,14 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+# 開発機に .env があってもテストに影響させない
+os.environ["EXACTROOM_ENV_FILE"] = ""
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-pytest-only-000000")
-os.environ.setdefault("ENVIRONMENT", "test")
+os.environ["ENVIRONMENT"] = "test"
 os.environ.setdefault("JUDGE_ISOLATION", "inline")
 os.environ.setdefault("JUDGE_TIMEOUT_SEC", "20")
+os.environ.pop("ROOM_CREATION_TOKEN", None)
+os.environ.pop("DATABASE_URL", None)
 
 
 @pytest.fixture()

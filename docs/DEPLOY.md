@@ -64,22 +64,46 @@ uvicorn app.main:app --host 0.0.0.0 --port $PORT
 常時起動できる PC があるなら、これが一番自由で確実です。
 外部に公開するのに固定 IP もポート開放も要りません。
 
-```bash
-# 1) アプリを起動
-cd exactroom
-source .venv/bin/activate
-export SECRET_KEY=... ENVIRONMENT=production TRUST_PROXY_HEADERS=true
-uvicorn app.main:app --host 127.0.0.1 --port 8000
+**同梱のスクリプトを使う場合(これが一番速い)**
 
-# 2) 別のターミナルで Cloudflare Tunnel (cloudflared) を起動
-#    macOS:  brew install cloudflared
-#    Linux:  https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/
-cloudflared tunnel --url http://127.0.0.1:8000
+```bash
+brew install cloudflared          # macOS。Linux は Cloudflare のダウンロードページから
+cp .env.example .env              # SECRET_KEY を設定 (下のコマンドで生成)
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+./scripts/serve_public.sh         # アプリ起動 + トンネル。Ctrl-C で両方停止
 ```
 
-`https://xxxx-yyyy.trycloudflare.com` のような URL が表示されるので、それを配ります
-(使い捨ての URL です。固定したい場合は無料の Cloudflare アカウントで
-名前付きトンネルを作ってください)。
+`https://xxxx-yyyy.trycloudflare.com` のような URL が表示されるので、それを配ります。
+スクリプトは出題者用のリンクと「部屋作成の合言葉」も一緒に表示します。
+
+**手動でやる場合**
+
+```bash
+# 1) アプリを起動 (.env を置いておけば設定はそこから読まれる)
+cd exactroom
+.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8800
+
+# 2) 別のターミナルで Cloudflare Tunnel
+cloudflared tunnel --url http://127.0.0.1:8800
+```
+
+公開時の `.env` の推奨値:
+
+```
+SECRET_KEY=<token_urlsafe(48) で生成した値>
+ENVIRONMENT=production          # /docs を無効化し HSTS を付ける
+TRUST_PROXY_HEADERS=true        # Cloudflare の背後で動かすため
+ROOM_CREATION_TOKEN=<合言葉>    # 誰でも部屋を作れないようにする
+DATABASE_URL=sqlite:///./data/exactroom.db
+```
+
+> **この URL は使い捨てです。** プロセスを止めると消え、次に起動すると別の URL に
+> なります。固定の URL が必要なら、無料の Cloudflare アカウントで
+> 名前付きトンネル (`cloudflared tunnel create`) を作ってください。
+>
+> **テストを走らせるときの注意**: `.env` があると `pytest` もそれを読み込みます。
+> テスト側では `EXACTROOM_ENV_FILE=""` を設定して無効化してあるので、
+> `.env` を置いたままテストしても影響はありません。
 
 - DB は SQLite のままで構いません(`data/exactroom.db`)。**バックアップはこのファイルをコピーするだけ**です。
 - PC をスリープさせない設定にしてください。

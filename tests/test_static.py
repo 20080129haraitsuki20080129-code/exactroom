@@ -130,3 +130,26 @@ def test_virtual_keyboard_spacing_is_handled():
     """MathLive の仮想キーボードが提出ボタンを覆わないようにする。"""
     source = strip_comments(read("js", "solve.js"))
     assert "geometrychange" in source
+
+
+def test_mobile_home_screen_assets_exist():
+    """スマホのホーム画面に追加したときに必要なファイルがあること。"""
+    assert (STATIC / "apple-touch-icon.png").exists()
+    assert (STATIC / "manifest.json").exists()
+    assert (STATIC / "robots.txt").exists()
+    # Safari が自動で取りに行くので PNG である必要がある
+    assert (STATIC / "apple-touch-icon.png").read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+@pytest.mark.parametrize("name", HTML_FILES)
+def test_html_declares_mobile_icons(name):
+    html = read(name)
+    assert 'rel="apple-touch-icon"' in html
+    assert 'rel="manifest"' in html
+    assert 'name="theme-color"' in html
+
+
+def test_robots_disallows_indexing():
+    """部屋は参加者だけのものなので検索エンジンに載せない。"""
+    robots = read("robots.txt")
+    assert "Disallow: /" in robots

@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import os
 import secrets
 import warnings
 from functools import lru_cache
@@ -13,10 +14,14 @@ from functools import lru_cache
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+#: 読み込む .env ファイル。``EXACTROOM_ENV_FILE=""`` で無効化できる。
+#: (テストや CI で、開発機の .env に引きずられないようにするため)
+ENV_FILE = os.getenv("EXACTROOM_ENV_FILE", ".env") or None
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+        env_file=ENV_FILE, env_file_encoding="utf-8", extra="ignore"
     )
 
     # ---- 基本 ----

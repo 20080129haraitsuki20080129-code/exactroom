@@ -314,7 +314,9 @@ def test_input_limits_come_from_settings():
     "path",
     ["/", "/index.html", "/solve", "/solve.html", "/host", "/host.html",
      "/static/index.html", "/static/solve.html", "/static/host.html",
-     "/static/css/app.css", "/static/js/home.js"],
+     "/static/css/app.css", "/static/js/home.js",
+     "/favicon.ico", "/apple-touch-icon.png", "/apple-touch-icon-precomposed.png",
+     "/robots.txt", "/manifest.json"],
 )
 def test_pages_are_served_under_both_layouts(app_client, path):
     """同一オリジン配信でも、静的ホスティング配下の相対リンクでも開けること。"""

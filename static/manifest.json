@@ -1,0 +1,25 @@
+{
+  "name": "ExactRoom — 数式の厳密自動判定",
+  "short_name": "ExactRoom",
+  "description": "TeX で書いた答案を SymPy で厳密に自動判定します。",
+  "start_url": "index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#14161a",
+  "theme_color": "#2f6df6",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "/static/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
