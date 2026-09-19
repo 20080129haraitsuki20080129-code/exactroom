@@ -592,10 +592,14 @@ class LatexParser:
         if self.accept("punct", "{"):
             if self.accept("punct", "}"):
                 raise LatexSyntaxError("添字が空です。", position=self.cur.pos)
-            # 複数桁の数字 (x_{12}) は連結された数値として読まれるのでそのままでよい
-            expr = self.parse_expr()
-            self.expect("punct", "}")
-            return _subscript_label(expr)
+            if self._subscript_has_operator():
+                # a_{n+1} と a_{1+n} を同じ記号にするため、式として正規化する
+                expr = self.parse_expr()
+                self.expect("punct", "}")
+                return _subscript_label(expr)
+            # 演算子が無いならラベルとして literal に扱う。
+            # 式として読むと x_{ab} と x_{ba} が a*b で同一視されてしまう。
+            return self._read_subscript_literal()
         tok = self.cur
         if tok.kind in ("number", "letter"):
             self.advance()
@@ -604,6 +608,53 @@ class LatexParser:
             self.advance()
             return GREEK[tok.value]
         raise UnsupportedLatexError("添字には英数字のみ使用できます。", position=tok.pos)
+
+    def _subscript_has_operator(self) -> bool:
+        """``{`` の次から対応する ``}`` までに演算子があるか覗く。"""
+        depth = 1
+        i = self.i
+        operators = {"+", "-", "*", "/", "^"}
+        while i < len(self.tokens):
+            tok = self.tokens[i]
+            if tok.kind == "eof":
+                break
+            if tok.kind == "punct":
+                if tok.value == "{":
+                    depth += 1
+                elif tok.value == "}":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                elif tok.value in operators:
+                    return True
+            elif tok.kind == "command" and (
+                tok.value in MULTIPLY_OPS or tok.value in DIVIDE_OPS
+            ):
+                return True
+            i += 1
+        return False
+
+    def _read_subscript_literal(self) -> str:
+        """``x_{ab}`` のような添字を、書かれた順のラベルとして読む。"""
+        parts: list[str] = []
+        while not (self.cur.kind == "punct" and self.cur.value == "}"):
+            tok = self.cur
+            if tok.kind in ("number", "letter"):
+                parts.append(tok.value)
+                self.advance()
+            elif tok.kind == "command" and tok.value in GREEK:
+                parts.append(GREEK[tok.value])
+                self.advance()
+            else:
+                raise UnsupportedLatexError(
+                    "添字には英数字とギリシャ文字のみ使用できます。", position=tok.pos
+                )
+            if len("".join(parts)) > 32:
+                raise InputTooLargeError("添字が長すぎます。")
+        self.expect("punct", "}")
+        if not parts:
+            raise LatexSyntaxError("添字が空です。", position=self.cur.pos)
+        return "".join(parts)
 
     # -- コマンド ----------------------------------------------------------
     def _command_atom(self, tok: Token):
@@ -644,6 +695,20 @@ class LatexParser:
             radicand = self.parse_group()
             if index is None:
                 return sp.sqrt(radicand)
+            if index.is_Integer and abs(int(index)) > MAX_EXPONENT:
+                raise InputTooLargeError(
+                    "根号の指数が大きすぎます。", position=tok.pos
+                )
+            # 奇数乗根は実数の根を使う。
+            # SymPy の既定は主値 (複素数) なので、(-8)^(1/3) は 1+√3i になり、
+            # 高校で期待される \sqrt[3]{-8} = -2 が WA になってしまう。
+            if (
+                self.opt.assume_real
+                and index.is_Integer
+                and int(index) > 0
+                and int(index) % 2 == 1
+            ):
+                return sp.real_root(radicand, int(index))
             return safe_pow(radicand, safe_pow(index, sp.Integer(-1), tok.pos), tok.pos)
 
         if cmd == r"\binom" or cmd == r"\dbinom":

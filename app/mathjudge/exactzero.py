@@ -365,6 +365,45 @@ def _certify_nonzero_number(expr, depth: int = 0) -> bool:
 # --------------------------------------------------------------------------
 
 
+def _piecewise_is_zero(expr, depth: int = 0) -> bool:
+    r"""場合分けの式が、どの場合でも 0 になることを示す。
+
+    ``\sqrt[3]{x^3} - x`` は SymPy では
+    ``Piecewise((-x, Eq(x**3, 0)), (0, True))`` になる。
+    1 本目の枝は「x^3 = 0 のとき」つまり x = 0 のときの値なので、
+    その条件のもとでは 0 である。条件を解いて代入し、実際に確かめる。
+    """
+    if depth > 2 or not isinstance(expr, sp.Piecewise):
+        return False
+    for value, condition in expr.args:
+        if not isinstance(value, sp.Expr):
+            return False
+        if decide_zero(value) == ZERO:
+            continue
+        # 条件が等式なら、その解のもとで枝の値が 0 になるか調べる
+        if not isinstance(condition, sp.Equality):
+            return False
+        try:
+            solutions = sp.solve(condition, dict=True)
+        except Exception:
+            return False
+        if not solutions:
+            # 条件を満たす点が無いなら、その枝は決して使われない
+            continue
+        for solution in solutions:
+            if any(has_float(v) for v in solution.values()):
+                return False
+            if any(v.free_symbols for v in solution.values()):
+                return False
+            try:
+                branch = value.subs(solution, simultaneous=True)
+            except Exception:
+                return False
+            if decide_zero(branch) != ZERO:
+                return False
+    return True
+
+
 def decide_zero(expr) -> str:
     """``expr`` が恒等的に 0 かどうかを厳密に判定する。
 
@@ -413,6 +452,12 @@ def decide_zero(expr) -> str:
     # --- C. 重い変形で 0 を示す ---
     if _try_prove_zero(expr, budget=weight):
         return ZERO
+
+    # 場合分けに落ちる式 (real_root や Abs を含む式) は枝ごとに確かめる
+    if weight <= COST_MEDIUM:
+        for candidate in (expr, _safe(sp.simplify, expr), _safe(sp.piecewise_fold, expr)):
+            if candidate is not None and _piecewise_is_zero(candidate):
+                return ZERO
 
     # --- D. 定数なら性質から、変数があれば代入して 0 でないことを示す ---
     if not free:

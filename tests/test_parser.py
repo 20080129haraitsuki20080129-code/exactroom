@@ -207,3 +207,23 @@ def test_parsing_never_produces_non_expr_arithmetic():
             answer = parse_latex_answer(source)
             for item in answer.items:
                 assert item is not None
+
+
+@pytest.mark.parametrize(
+    "first,second,same",
+    [
+        (r"a_{n+1}", r"a_{1+n}", True),    # 演算子があるので式として正規化する
+        (r"a_{2n}", r"a_{n2}", False),     # 並びが違えば別のラベル
+        (r"x_{ab}", r"x_{ba}", False),
+        (r"x_{12}", r"x_{21}", False),
+        (r"x_{i}", r"x_i", True),
+        (r"a_{2n}", r"a_{2n}", True),
+    ],
+)
+def test_subscripts_are_labels_unless_they_contain_operators(first, second, same):
+    """添字の同一視。
+
+    式として読むと x_{ab} と x_{ba} が a*b で同一視されてしまうため、
+    演算子を含まない添字は書かれた順のラベルとして扱う。
+    """
+    assert (parse_latex_expr(first) == parse_latex_expr(second)) is same

@@ -269,3 +269,58 @@ def test_assume_positive_cases_are_not_wa():
         (r"\sqrt{x}\sqrt{x}", r"x"),
     ]:
         assert judge(model, submitted, {"assume_positive": True}).verdict != WA
+
+
+# --------------------------------------------------------------------------
+# 奇数乗根 (高校では実数の根が期待される)
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "model,submitted",
+    [
+        (r"\sqrt[3]{-8}", r"-2"),
+        (r"\sqrt[3]{-27}", r"-3"),
+        (r"\sqrt[5]{-32}", r"-2"),
+        (r"\sqrt[3]{x^3}", r"x"),
+        (r"\sqrt[5]{x^5}", r"x"),
+        (r"\sqrt[3]{8x^3}", r"2x"),
+        (r"\sqrt[3]{27}", r"3"),
+    ],
+)
+def test_odd_roots_use_the_real_root(model, submitted):
+    r"""奇数乗根は実数の根として扱うこと。
+
+    SymPy の既定は主値 (複素数) なので (-8)^(1/3) = 1+√3i となり、
+    \sqrt[3]{-8} に -2 と答えた生徒が WA になっていた。
+    \sqrt[3]{x^3} と x も WA (偽 WA) になっていた。
+    """
+    assert judge(model, submitted).verdict == AC
+
+
+@pytest.mark.parametrize(
+    "model,submitted",
+    [
+        (r"\sqrt[3]{-8}", r"2"),
+        (r"\sqrt[3]{x^3}", r"-x"),
+        (r"\sqrt[3]{x^3}", r"x+1"),
+    ],
+)
+def test_odd_roots_still_catch_wrong_answers(model, submitted):
+    assert judge(model, submitted).verdict == WA
+
+
+def test_even_roots_keep_the_principal_value():
+    """偶数乗根は主値のまま (√(-4) = 2i)。"""
+    assert judge(r"\sqrt{-4}", r"2i").verdict == AC
+    assert judge(r"\sqrt[4]{16}", r"2").verdict == AC
+
+
+def test_piecewise_zero_is_detected():
+    """場合分けに落ちる式でも、全ての場合で 0 なら 0 と判定できること。"""
+    import sympy as sp
+
+    from app.mathjudge.exactzero import ZERO, decide_zero
+
+    x = sp.Symbol("x", real=True)
+    assert decide_zero(sp.real_root(x**3, 3) - x) == ZERO
