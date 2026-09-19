@@ -25,12 +25,21 @@ os.environ.pop("ROOM_CREATION_TOKEN", None)
 os.environ.pop("DATABASE_URL", None)
 
 
+#: PostgreSQL でも同じテストを回したいときに指定する。
+#:   TEST_DATABASE_URL=postgresql://user@host/db pytest
+#: 指定が無ければテストごとに使い捨ての SQLite ファイルを使う。
+TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", "")
+
+
 @pytest.fixture()
 def app_client(tmp_path, monkeypatch):
     from fastapi.testclient import TestClient
 
-    db_path = tmp_path / "test.db"
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_path}")
+    if TEST_DATABASE_URL:
+        monkeypatch.setenv("DATABASE_URL", TEST_DATABASE_URL)
+    else:
+        db_path = tmp_path / "test.db"
+        monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_path}")
 
     from app import config
     from app import db as db_module
@@ -41,6 +50,13 @@ def app_client(tmp_path, monkeypatch):
     db_module.reset_engine()
     runner.reset_runner()
     limiter.reset()
+
+    if TEST_DATABASE_URL:
+        # 共有 DB なので、テストごとにテーブルを作り直して独立させる
+        from app.models import Base
+
+        Base.metadata.drop_all(bind=db_module.get_engine())
+        db_module.reset_engine()
 
     from app.main import create_app
 

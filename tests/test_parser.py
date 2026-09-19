@@ -155,3 +155,55 @@ def test_subscript_expansion_is_bounded(source):
 @pytest.mark.parametrize("source", [r"a_{n+1}", r"x_{12}", r"a_{2n}", r"x_1"])
 def test_normal_subscripts_still_work(source):
     assert parse_latex_answer(source).kind == "expr"
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        r"\{1,2\}+1",
+        r"\{1,2\} \cdot 3",
+        r"\emptyset + 1",
+        r"2\{1,2\}",
+        r"\sqrt{\{1,2\}}",
+        r"\left\{1,2\right\}^2",
+        r"\{1,2\}=\{1,2\}",
+    ],
+)
+def test_sets_cannot_be_used_inside_expressions(source):
+    r"""集合を式の一部に書けないこと。
+
+    以前は ``\{1,2\}+1`` が Add(FiniteSet, 1) という無意味な式になっていた。
+    SymPy はこの使い方を非推奨としており、将来は実行時エラーになる。
+    """
+    with pytest.raises((UnsupportedLatexError, LatexSyntaxError)):
+        parse_latex_answer(source)
+
+
+@pytest.mark.parametrize(
+    "source,kind",
+    [
+        (r"\{1,2\}", "set"),
+        (r"\{1,2,3\}", "set"),
+        (r"\left\{1,2\right\}", "set"),
+        (r"\emptyset", "set"),
+        (r"\varnothing", "set"),
+        (r"\{1,2\},\{3\}", "list"),
+    ],
+)
+def test_sets_are_fine_on_their_own(source, kind):
+    assert parse_latex_answer(source).kind == kind
+
+
+def test_parsing_never_produces_non_expr_arithmetic():
+    """算術の引数に Expr 以外 (集合など) が入らないこと。"""
+    import warnings
+
+    import sympy as sp
+
+    sources = [r"\{1,2\}", r"1,2", r"x+1", r"\emptyset", r"x=1", r"0 \le x \le 1"]
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", sp.utilities.exceptions.SymPyDeprecationWarning)
+        for source in sources:
+            answer = parse_latex_answer(source)
+            for item in answer.items:
+                assert item is not None

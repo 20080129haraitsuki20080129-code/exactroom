@@ -289,6 +289,8 @@ class LatexParser:
         self.opt = options
         self.depth = 0
         self.abs_depth = 0
+        #: いま集合を読んでよい位置か (文の先頭のみ True)
+        self._set_ok = False
 
     # -- トークン操作 ------------------------------------------------------
     @property
@@ -362,6 +364,19 @@ class LatexParser:
         return ParsedAnswer("list", items)
 
     def parse_statement(self):
+        # 集合は式の一部にはなれない (``\{1,2\}+1`` のような無意味な式を防ぐ)。
+        # 文全体が集合のときだけ受け付ける。
+        if self._at_set_start():
+            value = self.parse_atom_set()
+            if not (
+                self.cur.kind == "eof"
+                or (self.cur.kind == "punct" and self.cur.value == ",")
+            ):
+                raise UnsupportedLatexError(
+                    "集合を式の一部として使うことはできません。",
+                    position=self.cur.pos,
+                )
+            return value
         left = self.parse_expr()
         relations: list = []
         while True:
@@ -377,6 +392,34 @@ class LatexParser:
         if len(relations) == 1:
             return relations[0]
         return sp.And(*relations)
+
+    def _at_set_start(self) -> bool:
+        tok = self.cur
+        if tok.kind == "command" and tok.value in (
+            r"\{", r"\lbrace", r"\emptyset", r"\varnothing"
+        ):
+            return True
+        if tok.kind == "command" and tok.value == r"\left":
+            nxt = self.peek(1)
+            return nxt.kind == "command" and nxt.value in (r"\{", r"\lbrace")
+        return False
+
+    def parse_atom_set(self):
+        """文の先頭にある集合を読む。"""
+        self._set_ok = True
+        try:
+            return self._parse_atom_set_inner()
+        finally:
+            self._set_ok = False
+
+    def _parse_atom_set_inner(self):
+        tok = self.cur
+        if tok.kind == "command" and tok.value in (r"\emptyset", r"\varnothing"):
+            self.advance()
+            return sp.EmptySet
+        if tok.kind == "command" and tok.value == r"\left":
+            return self._parse_left_right()
+        return self._parse_set_literal(closing=(r"\}", r"\rbrace"))
 
     def _peek_relation(self) -> str | None:
         tok = self.cur
@@ -469,7 +512,7 @@ class LatexParser:
                 v in GREEK
                 or v in UNARY_FUNCTIONS
                 or v in ATOM_COMMANDS
-                or v in (r"\left", r"\{", r"\lbrace", r"\lvert", r"\vert")
+                or v in (r"\left", r"\lvert", r"\vert")
             )
         return False
 
@@ -582,8 +625,9 @@ class LatexParser:
             return sp.oo
 
         if cmd in (r"\emptyset", r"\varnothing"):
-            self.advance()
-            return sp.EmptySet
+            raise UnsupportedLatexError(
+                "空集合を式の一部として使うことはできません。", position=tok.pos
+            )
 
         if cmd in (r"\frac", r"\dfrac", r"\tfrac", r"\cfrac"):
             self.advance()
@@ -666,7 +710,9 @@ class LatexParser:
             return self._parse_left_right()
 
         if cmd in (r"\{", r"\lbrace"):
-            return self._parse_set_literal(closing=(r"\}", r"\rbrace"))
+            raise UnsupportedLatexError(
+                "集合を式の一部として使うことはできません。", position=tok.pos
+            )
 
         if cmd in (r"\lvert", r"\vert"):
             self.advance()
@@ -799,6 +845,10 @@ class LatexParser:
                 rf"\left{opener_value} には対応していません。", position=opener.pos
             )
         if opener_value in (r"\{", r"\lbrace"):
+            if not self._set_ok:
+                raise UnsupportedLatexError(
+                    "集合を式の一部として使うことはできません。", position=opener.pos
+                )
             return self._parse_set_body(left_right=True)
 
         inside_abs = opener_value in ("|", r"\lvert", r"\vert", r"\lVert")
@@ -920,8 +970,6 @@ ATOM_COMMANDS = frozenset(
         r"\operatorname",
         r"\log",
         r"\lg",
-        r"\emptyset",
-        r"\varnothing",
     }
 )
 

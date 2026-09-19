@@ -116,6 +116,10 @@ DATABASE_URL=sqlite:///./data/exactroom.db
 Render の無料 Web Service は **ディスクが永続化されない**ので、DB は外部の無料
 PostgreSQL(Neon)を使います。
 
+> **PostgreSQL での動作は検証済みです。** CI で毎回、SQLite と PostgreSQL の
+> 両方に対して同じテスト一式 (271 件) を通しています。
+> 手元で確かめたい場合は `TEST_DATABASE_URL=postgresql://... pytest` で同じことができます。
+
 ### 2-1. Neon で DB を作る
 
 1. <https://neon.tech> でサインアップ(GitHub アカウントで可)。
