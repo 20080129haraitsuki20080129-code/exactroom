@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import csv
 import sys
+from datetime import UTC
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -110,8 +111,13 @@ def cmd_export(args) -> None:
              "problem_title", "answer_latex", "verdict", "reason", "elapsed_ms"]
         )
         for submission, title, name in rows:
+            created = submission.created_at
+            # SQLite から返る日時はタイムゾーンを失っているので付け直す。
+            # 付けないと、画面の CSV (UTC 表記) と時刻がずれて読める。
+            if created is not None and created.tzinfo is None:
+                created = created.replace(tzinfo=UTC)
             writer.writerow(
-                [submission.id, submission.created_at.isoformat(), name,
+                [submission.id, created.isoformat() if created else "", name,
                  submission.problem_id, title, submission.answer_latex,
                  submission.verdict, submission.reason, submission.elapsed_ms]
             )

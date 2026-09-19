@@ -366,7 +366,7 @@ pytest -q
 | `tests/test_security.py` | eval 不使用・数値評価不使用・認証・レート制限・DoS 耐性 |
 | `tests/test_runner.py` | プロセス分離、タイムアウト、設定の反映、巻き添え時の再試行 |
 
-合計 289 件。SQLite と PostgreSQL の両方で通ります。
+合計 308 件。SQLite と PostgreSQL の両方で通ります。
 
 CI(GitHub Actions)では Python 3.11 / 3.12 で lint + テストを実行します。
 

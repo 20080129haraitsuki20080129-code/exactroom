@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import pytest
 
+ROOT_DIR = __import__("pathlib").Path(__file__).resolve().parent.parent
+
 
 def make_problem(host, **overrides):
     payload = {
@@ -777,3 +779,48 @@ def test_many_participants_can_join_and_submit_at_once(app_client, host, room):
     participants = host.get("/api/host/participants").json()
     assert len(participants) == 30
     assert all(p["submission_count"] == 2 for p in participants)
+
+
+def test_cli_export_matches_web_csv(app_client, host, solver, tmp_path, monkeypatch):
+    """scripts/admin.py の CSV が、画面からの CSV と同じ内容になること。
+
+    CLI 側だけタイムゾーンを落としていて、時刻が 9 時間ずれて読めていた。
+    """
+    import csv
+    import io
+    import subprocess
+    import sys
+
+    problem = make_problem(host)
+    solver.post(
+        "/api/solve/submissions",
+        json={"problem_id": problem["id"], "answer_latex": r"x^2-1"},
+    )
+
+    web = host.get("/api/host/submissions.csv").text.lstrip("\ufeff")
+    web_rows = list(csv.reader(io.StringIO(web)))
+
+    import os
+
+    from app.config import get_settings
+
+    room_code = get_settings() and host.get("/api/host/room").json()["code"]
+    env = dict(os.environ)
+    env["EXACTROOM_ENV_FILE"] = ""
+    result = subprocess.run(
+        [sys.executable, "scripts/admin.py", "export", room_code],
+        capture_output=True,
+        text=True,
+        cwd=str(ROOT_DIR),
+        env=env,
+    )
+    assert result.returncode == 0, result.stderr
+    cli_rows = list(csv.reader(io.StringIO(result.stdout)))
+
+    assert cli_rows[0] == web_rows[0], "ヘッダが違う"
+    assert len(cli_rows) == len(web_rows)
+    for cli_row, web_row in zip(cli_rows[1:], web_rows[1:], strict=False):
+        assert cli_row[0] == web_row[0], "提出 ID が違う"
+        # 同じ瞬間を指していること (表記ゆれは許容しない)
+        assert cli_row[1] == web_row[1], f"日時が違う: CLI={cli_row[1]} Web={web_row[1]}"
+        assert cli_row[2:] == web_row[2:]
