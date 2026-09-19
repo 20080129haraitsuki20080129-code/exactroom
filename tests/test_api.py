@@ -664,3 +664,116 @@ def test_missing_creation_token_explains_itself(app_client, monkeypatch):
     finally:
         monkeypatch.delenv("ROOM_CREATION_TOKEN", raising=False)
         config_module.get_settings.cache_clear()
+
+
+# --------------------------------------------------------------------------
+# 同時アクセス・混雑時のふるまい
+# --------------------------------------------------------------------------
+
+
+def test_connection_pool_is_large_enough_for_a_classroom():
+    """既定のプールが、教室規模の同時アクセスに耐える大きさであること。
+
+    SQLAlchemy の既定 (5+10) のままだと 100 人規模で枯渇し、
+    30 秒待たされた末に失敗していた。
+    """
+    from app.config import get_settings
+
+    settings = get_settings()
+    assert settings.db_pool_size + settings.db_max_overflow >= 40
+    # 待たされ続けるより、早めに諦めて 503 を返すほうがよい
+    assert settings.db_pool_timeout <= 15
+
+
+def test_pool_exhaustion_returns_503_not_500(tmp_path, monkeypatch):
+    """接続が尽きたときに 500 ではなく 503 (混雑中) を返すこと。"""
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'busy.db'}")
+    monkeypatch.setenv("DB_POOL_SIZE", "2")
+    monkeypatch.setenv("DB_MAX_OVERFLOW", "0")
+    monkeypatch.setenv("DB_POOL_TIMEOUT", "1")
+
+    from app import config
+    from app import db as db_module
+
+    config.get_settings.cache_clear()
+    db_module.reset_engine()
+    from app.main import create_app
+
+    with TestClient(create_app(), raise_server_exceptions=False) as client:
+        created = client.post(
+            "/api/rooms", json={"title": "busy", "secret": "secret-key-1234", "code": "BSY"}
+        )
+        assert created.status_code == 201
+        assert client.get("/api/rooms/BSY").status_code == 200
+
+        engine = db_module.get_engine()
+        held = [engine.connect() for _ in range(2)]
+        try:
+            response = client.get("/api/rooms/BSY")
+            assert response.status_code == 503, response.status_code
+            assert response.headers.get("Retry-After")
+            assert response.json()["code"] == "busy"
+            assert "混み合" in response.json()["detail"]
+        finally:
+            for connection in held:
+                connection.close()
+
+        assert client.get("/api/rooms/BSY").status_code == 200
+
+    db_module.reset_engine()
+    config.get_settings.cache_clear()
+
+
+def test_many_participants_can_join_and_submit_at_once(app_client, host, room):
+    """同時に大勢が参加・提出しても、失敗や取り違えが起きないこと。
+
+    教室では全員が学校の NAT 越しで同じ IP に見えるため、
+    IP 単位のレート制限が小さいとクラスの後半が参加できなくなる
+    (実際に 30 人中 20 人しか参加できていなかった)。
+    """
+    import collections
+    import threading
+
+    problem = make_problem(host)
+    host.patch(
+        "/api/host/settings",
+        json={"submission_cooldown_sec": 0, "max_submissions_per_problem": 2},
+    )
+
+    statuses = collections.Counter()
+    lock = threading.Lock()
+
+    def one(index: int) -> None:
+        joined = app_client.post(
+            f"/api/rooms/{room['code']}/join", json={"display_name": f"生徒{index:03d}"}
+        )
+        with lock:
+            statuses[("join", joined.status_code)] += 1
+        if joined.status_code != 200:
+            return
+        headers = {"Authorization": f"Bearer {joined.json()['token']}"}
+        for _ in range(3):  # 上限 2 を超えて投げる
+            response = app_client.post(
+                "/api/solve/submissions",
+                headers=headers,
+                json={"problem_id": problem["id"], "answer_latex": r"x^2-1"},
+            )
+            with lock:
+                statuses[("submit", response.status_code)] += 1
+
+    threads = [threading.Thread(target=one, args=(i,)) for i in range(30)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert statuses[("join", 200)] == 30
+    assert statuses[("submit", 201)] == 60  # 30 人 x 上限 2
+    assert statuses[("submit", 429)] == 30
+    assert not [k for k in statuses if k[1] >= 500], dict(statuses)
+
+    participants = host.get("/api/host/participants").json()
+    assert len(participants) == 30
+    assert all(p["submission_count"] == 2 for p in participants)

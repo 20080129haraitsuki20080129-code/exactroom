@@ -16,6 +16,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import TimeoutError as SQLTimeoutError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .config import get_settings
@@ -131,6 +133,36 @@ def create_app() -> FastAPI:
                 "detail": f"{field} の値が不正です。",
                 "code": "validation_error",
             },
+        )
+
+    @app.exception_handler(SQLTimeoutError)
+    async def db_busy(_request: Request, exc: SQLTimeoutError):
+        """DB の接続待ちが詰まったときは、落ちずに「混雑中」と返す。
+
+        これが無いと、同時アクセスが多いときに待たされた末 500 になる。
+        恒常的に出るなら DB_POOL_SIZE / DB_MAX_OVERFLOW を増やす。
+        """
+        logger.warning("database pool exhausted: %s", exc)
+        return JSONResponse(
+            status_code=503,
+            content={
+                "detail": "いま混み合っています。数秒おいてもう一度お試しください。",
+                "code": "busy",
+            },
+            headers={"Retry-After": "5"},
+        )
+
+    @app.exception_handler(OperationalError)
+    async def db_unavailable(_request: Request, exc: OperationalError):
+        logger.warning("database operational error: %s", exc)
+        return JSONResponse(
+            status_code=503,
+            content={
+                "detail": "データベースに接続できませんでした。"
+                "数秒おいてもう一度お試しください。",
+                "code": "db_unavailable",
+            },
+            headers={"Retry-After": "5"},
         )
 
     @app.exception_handler(Exception)

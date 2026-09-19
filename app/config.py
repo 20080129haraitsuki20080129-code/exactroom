@@ -35,6 +35,13 @@ class Settings(BaseSettings):
     #: 例) sqlite:///./data/exactroom.db
     #:     postgresql+psycopg://user:pass@host/dbname
     database_url: str = "sqlite:///./data/exactroom.db"
+    #: 同時アクセスに耐えるための接続プール。
+    #: 既定 (5+10) のままだと 100 人規模で枯渇し、30 秒待たされた末に失敗する。
+    #: pool_size + max_overflow が、同時に処理できるリクエスト数の上限になる。
+    db_pool_size: int = 20
+    db_max_overflow: int = 20
+    #: 接続が空くのを待つ時間。長いと利用者がただ待たされるので短くする。
+    db_pool_timeout: int = 10
 
     # ---- CORS ----
     #: フロントを別ホスト (GitHub Pages など) に置く場合に設定
@@ -67,12 +74,18 @@ class Settings(BaseSettings):
     host_session_ttl_hours: int = 12
 
     # ---- レート制限 (メモリ内。単一プロセス前提) ----
+    #
+    # ★ 教室では全員が学校の NAT 越しで「同じ IP」に見える。
+    #   IP あたりの上限を小さくすると、クラスの後半の生徒が参加できなくなる。
+    #   そのため IP 単位の上限はクラス規模を見込んで大きめにし、
+    #   乱用の抑止は参加者単位の仕組み (提出クールダウン・1 問あたりの提出上限)
+    #   と、出題者による「新規参加の締め切り」で行う。
     rate_limit_enabled: bool = True
-    rate_join_per_minute: int = 20
-    rate_host_login_per_minute: int = 10
-    rate_submit_per_minute: int = 30
-    rate_create_room_per_hour: int = 10
-    rate_general_per_minute: int = 240
+    rate_join_per_minute: int = 120
+    rate_host_login_per_minute: int = 15
+    rate_submit_per_minute: int = 300
+    rate_create_room_per_hour: int = 30
+    rate_general_per_minute: int = 900
     submission_cooldown_sec: int = 3
 
     # ---- リバースプロキシ ----

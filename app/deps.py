@@ -36,10 +36,11 @@ def enforce_rate(request: Request, bucket: str, limit: int, window: float) -> No
         return
     key = f"{bucket}:{client_ip(request)}"
     if not limiter.hit(key, limit, window):
+        wait = limiter.retry_after(key, window)
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="リクエストが多すぎます。しばらく待ってからお試しください。",
-            headers={"Retry-After": str(limiter.retry_after(key, window))},
+            detail=f"アクセスが集中しています。{wait} 秒ほどおいてからお試しください。",
+            headers={"Retry-After": str(wait)},
         )
 
 

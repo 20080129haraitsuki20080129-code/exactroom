@@ -304,6 +304,8 @@ docs/                  スキーマ・公開手順・セキュリティ・判定
 | `ROOM_CREATION_TOKEN` | 空 | 設定すると部屋作成に合言葉が必要になります |
 | `ALLOW_ROOM_CREATION` | `true` | `false` で部屋作成を停止 |
 | `SUBMISSION_COOLDOWN_SEC` | `3` | 連続提出の最小間隔(部屋ごとに変更可) |
+| `DB_POOL_SIZE` / `DB_MAX_OVERFLOW` | `20` / `20` | DB 接続プール。合計が同時処理数の上限 |
+| `RATE_JOIN_PER_MINUTE` | `120` | IP あたりの参加上限。教室は NAT で同じ IP に見えるため大きめ |
 | `TRUST_PROXY_HEADERS` | `false` | リバースプロキシ配下では `true` |
 | `CDN_HOSTS` | jsDelivr / unpkg | CSP で許可する CDN |
 
@@ -364,7 +366,7 @@ pytest -q
 | `tests/test_security.py` | eval 不使用・数値評価不使用・認証・レート制限・DoS 耐性 |
 | `tests/test_runner.py` | プロセス分離、タイムアウト、設定の反映、巻き添え時の再試行 |
 
-合計 268 件。10 秒以内に完走します。
+合計 289 件。SQLite と PostgreSQL の両方で通ります。
 
 CI(GitHub Actions)では Python 3.11 / 3.12 で lint + テストを実行します。
 

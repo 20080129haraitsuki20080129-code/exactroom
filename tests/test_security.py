@@ -250,14 +250,33 @@ def test_xss_payload_is_stored_as_text_not_html(app_client, host, room):
 
 
 def test_rate_limit_on_host_login(app_client, room):
+    """秘密キーの総当たりが、設定した回数で止まること。"""
+    from app.config import get_settings
+
+    limit = get_settings().rate_host_login_per_minute
     codes = []
-    for _ in range(15):
+    for _ in range(limit + 5):
         codes.append(
             app_client.post(
                 f"/api/rooms/{room['code']}/host/login", json={"secret": "nope"}
             ).status_code
         )
-    assert 429 in codes
+    assert 429 in codes, f"上限 {limit} を超えても止まらない"
+    assert codes.count(401) <= limit
+
+
+def test_rate_limits_allow_a_whole_class_from_one_ip():
+    """教室の全員が同じ IP に見えても参加できる上限になっていること。
+
+    学校の NAT 越しでは 40 人が 1 つの IP に見える。
+    ここが小さいと、後半の生徒が参加できなくなる (実際に起きた)。
+    """
+    from app.config import get_settings
+
+    settings = get_settings()
+    assert settings.rate_join_per_minute >= 80, "1 クラス分の同時参加に足りない"
+    assert settings.rate_submit_per_minute >= 200, "1 クラス分の同時提出に足りない"
+    assert settings.rate_general_per_minute >= 600
 
 
 def test_oversized_answer_rejected(app_client, host, solver):

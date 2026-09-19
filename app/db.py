@@ -32,7 +32,15 @@ def _normalize_url(url: str) -> str:
 def build_engine(url: str | None = None):
     settings = get_settings()
     url = _normalize_url(url or settings.database_url)
-    kwargs: dict = {"pool_pre_ping": True, "future": True}
+    kwargs: dict = {
+        "pool_pre_ping": True,
+        "future": True,
+        "pool_size": max(1, settings.db_pool_size),
+        "max_overflow": max(0, settings.db_max_overflow),
+        "pool_timeout": max(1, settings.db_pool_timeout),
+        # 長時間空いた接続は作り直す (Neon などは一定時間で切る)
+        "pool_recycle": 1800,
+    }
     if url.startswith("sqlite"):
         # SQLite ファイルの置き場所を作っておく
         if ":memory:" not in url:
