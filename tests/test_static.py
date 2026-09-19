@@ -64,10 +64,15 @@ def test_form_controls_keep_16px_font():
     フォーム要素だけ 16px に戻すルールが必要。
     """
     css = read("css", "app.css")
+    # max(16px, 1rem) なので、文字サイズを拡大しても 16px を下回らない
     assert re.search(
-        r"input\.mono,\s*textarea\.mono,\s*select\.mono\s*\{[^}]*font-size:\s*16px",
+        r"input\.mono,\s*textarea\.mono,\s*select\.mono\s*\{[^}]*"
+        r"font-size:\s*max\(16px,",
         css,
-    ), "フォーム要素の 16px 指定が無い"
+    ), "フォーム要素の 16px 下限指定が無い"
+    assert re.search(
+        r"input\[type=\"text\"\][^{]*\{[^}]*font-size:\s*max\(16px,", css
+    ), "入力欄の 16px 下限指定が無い"
 
 
 def test_page_navigation_is_relative():
@@ -153,3 +158,87 @@ def test_robots_disallows_indexing():
     """部屋は参加者だけのものなので検索エンジンに載せない。"""
     robots = read("robots.txt")
     assert "Disallow: /" in robots
+
+
+# --------------------------------------------------------------------------
+# ユニバーサルデザイン
+# --------------------------------------------------------------------------
+
+
+def test_verdict_is_not_conveyed_by_color_alone():
+    """色覚に依らず正誤が分かること (記号とことばを併記する)。"""
+    source = strip_comments(read("js", "api.js"))
+    assert "verdictBadge" in source
+    for mark in ("○", "✕", "△"):
+        assert mark in source, f"判定の記号 {mark} が無い"
+    for word in ("正解", "不正解", "判定できず"):
+        assert word in source, f"判定のことば {word} が無い"
+
+    # 判定を描く側が、色クラスだけの表示に戻っていないこと
+    for name in ("solve.js", "host.js"):
+        page = strip_comments(read("js", name))
+        assert "verdictBadge" in page, f"{name} が verdictBadge を使っていない"
+
+
+@pytest.mark.parametrize("name", HTML_FILES)
+def test_text_size_switcher_exists(name):
+    """文字サイズを利用者が変えられること。"""
+    html = read(name)
+    for size in ("normal", "large", "xlarge"):
+        assert f'id="textsize-{size}"' in html, f"{name}: 文字サイズ {size} のボタンが無い"
+    assert 'aria-label="文字サイズ"' in html
+
+
+@pytest.mark.parametrize("name", HTML_FILES)
+def test_skip_link_for_keyboard_users(name):
+    """キーボード利用者が本文へ直接飛べること。"""
+    html = read(name)
+    assert 'class="skip-link"' in html
+    assert 'href="#main"' in html
+    assert 'id="main"' in html
+
+
+@pytest.mark.parametrize("name", HTML_FILES)
+def test_ud_font_is_requested_with_fallback(name):
+    """UD フォントを使い、読み込めなくても端末の標準フォントで表示できること。"""
+    html = read(name)
+    assert "BIZ+UDPGothic" in html, f"{name}: UD フォントを読み込んでいない"
+    css = read("css", "app.css")
+    assert "BIZ UDPGothic" in css
+    # フォールバックが用意されていること
+    assert "sans-serif" in css
+
+
+def test_text_size_scales_the_whole_page():
+    css = read("css", "app.css")
+    assert re.search(r"html\s*\{[^}]*font-size:\s*var\(--base-font\)", css)
+    for size in ("large", "xlarge"):
+        assert f':root[data-textsize="{size}"]' in css, f"{size} の定義が無い"
+    # html に font-size: 1rem を書くと root が初期値 (16px) に戻り、
+    # 文字サイズの切り替えが効かなくなる
+    for match in re.finditer(r"(^|\n)\s*html[^{]*\{([^}]*)\}", css):
+        selector = css[match.start():match.start() + match.group(0).index("{")]
+        if "body" in selector or "html" in selector:
+            assert "font-size: 1rem" not in match.group(2), (
+                "html に font-size: 1rem があると文字サイズ切り替えが効かない"
+            )
+
+
+def test_tap_targets_are_large_enough():
+    """指で押す対象を 44px 以上にする。"""
+    css = read("css", "app.css")
+    button = re.search(r"\nbutton\s*\{([^}]*)\}", css)
+    assert button and "min-height: 48px" in button.group(1)
+    assert "min-height: 48px" in css
+
+
+def test_motion_and_contrast_preferences_are_respected():
+    css = read("css", "app.css")
+    assert "prefers-reduced-motion" in css, "動きを減らす設定に対応していない"
+    assert "prefers-contrast" in css, "コントラストを上げる設定に対応していない"
+
+
+def test_focus_is_visible():
+    css = read("css", "app.css")
+    assert ":focus-visible" in css
+    assert re.search(r":focus-visible\s*\{[^}]*outline:", css)

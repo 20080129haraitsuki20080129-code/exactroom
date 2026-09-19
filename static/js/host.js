@@ -1,7 +1,19 @@
-import { api, session, setText, showError, formatTime, el } from "./api.js";
+import {
+  api,
+  session,
+  setText,
+  showError,
+  formatTime,
+  el,
+  setupTextSize,
+  verdictText,
+  verdictBadge,
+} from "./api.js";
 import { renderMath } from "./mathfield.js";
 
 const $ = (id) => document.getElementById(id);
+
+setupTextSize();
 
 const host = session.getHost();
 if (!host || !host.token) {
@@ -253,7 +265,9 @@ $("selftest-run").addEventListener("click", async () => {
     );
     area.textContent = "";
     const banner = el("div", { className: `banner ${result.verdict}` });
-    banner.appendChild(el("div", { className: "headline", text: result.verdict }));
+    banner.appendChild(
+      el("div", { className: "headline", text: verdictText(result.verdict, { long: true }) })
+    );
     banner.appendChild(el("div", { className: "small", text: `根拠: ${result.reason} (${result.elapsed_ms} ms)` }));
     area.appendChild(banner);
   } catch (err) {
@@ -366,12 +380,7 @@ function renderSubmissions() {
         el("td", { className: "small", text: row.participant_name }),
         el("td", { className: "small", text: row.problem_title || `#${row.problem_id}` }),
         el("td", { className: "tex small", text: row.answer_latex }),
-        el("td", {}, [
-          el("span", {
-            className: `verdict ${row.verdict}`,
-            text: row.verdict === "PENDING" ? "保留" : row.verdict,
-          }),
-        ]),
+        el("td", {}, [verdictBadge(row.verdict)]),
         el("td", { className: "small muted", text: row.reason }),
         el("td", { className: "small muted nowrap", text: `${row.elapsed_ms} ms` }),
       ])

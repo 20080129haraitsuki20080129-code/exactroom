@@ -1,7 +1,20 @@
-import { api, session, setText, showError, formatTime, texPreview, el } from "./api.js";
+import {
+  api,
+  session,
+  setText,
+  showError,
+  formatTime,
+  texPreview,
+  el,
+  setupTextSize,
+  verdictText,
+  verdictBadge,
+} from "./api.js";
 import { createMathInput, renderMath, buildSymbolPad } from "./mathfield.js";
 
 const $ = (id) => document.getElementById(id);
+
+setupTextSize();
 
 const solver = session.getSolver();
 if (!solver || !solver.token) {
@@ -158,17 +171,15 @@ function setupVirtualKeyboardSpacing(input) {
   });
 }
 
-function verdictLabel(verdict) {
-  if (verdict === "AC") return "AC (正解)";
-  if (verdict === "WA") return "WA (不正解)";
-  return "判定保留";
-}
+
 
 function showResult(result) {
   const area = $("result-area");
   area.textContent = "";
   const banner = el("div", { className: `banner ${result.verdict}` });
-  banner.appendChild(el("div", { className: "headline", text: verdictLabel(result.verdict) }));
+  banner.appendChild(
+    el("div", { className: "headline", text: verdictText(result.verdict, { long: true }) })
+  );
   banner.appendChild(el("div", { className: "small", text: result.message || "" }));
   if (result.remaining_submissions !== null && result.remaining_submissions !== undefined) {
     banner.appendChild(
@@ -197,7 +208,7 @@ async function loadHistory() {
       body.appendChild(
         el("tr", {}, [
           el("td", { className: "small nowrap", text: formatTime(row.created_at) }),
-          el("td", {}, [el("span", { className: `verdict ${row.verdict}`, text: row.verdict === "PENDING" ? "保留" : row.verdict })]),
+          el("td", {}, [verdictBadge(row.verdict)]),
           el("td", { className: "tex small", text: row.answer_latex }),
         ])
       );

@@ -141,3 +141,66 @@ export function el(tag, options = {}, children = []) {
   }
   return node;
 }
+
+
+/* ---------------- ユニバーサルデザイン ---------------- */
+
+/**
+ * 判定の表し方。
+ *
+ * 色覚には個人差があるため、色だけで正誤を伝えない。
+ * 記号 (○ ✕ △) と日本語のことばを必ず一緒に出す。
+ */
+export const VERDICT = {
+  AC: { mark: "○", short: "正解", long: "正解です" },
+  WA: { mark: "✕", short: "不正解", long: "不正解です" },
+  PENDING: { mark: "△", short: "判定できず", long: "判定できませんでした" },
+};
+
+export function verdictText(verdict, { long = false } = {}) {
+  const info = VERDICT[verdict] || VERDICT.PENDING;
+  return `${info.mark} ${long ? info.long : info.short}`;
+}
+
+/** 判定バッジ (記号 + ことば) を作る。 */
+export function verdictBadge(verdict) {
+  const info = VERDICT[verdict] || VERDICT.PENDING;
+  const span = el("span", { className: `verdict ${verdict}` });
+  span.appendChild(el("span", { attrs: { "aria-hidden": "true" }, text: info.mark }));
+  span.appendChild(el("span", { text: info.short }));
+  return span;
+}
+
+const TEXT_SIZES = ["normal", "large", "xlarge"];
+const TEXT_SIZE_KEY = "exactroom.textsize";
+
+/** 文字サイズの切り替え。選んだ大きさは同じ端末で覚えておく。 */
+export function setupTextSize() {
+  const apply = (size) => {
+    const value = TEXT_SIZES.includes(size) ? size : "normal";
+    if (value === "normal") document.documentElement.removeAttribute("data-textsize");
+    else document.documentElement.setAttribute("data-textsize", value);
+    for (const key of TEXT_SIZES) {
+      const button = document.getElementById(`textsize-${key}`);
+      if (button) button.setAttribute("aria-pressed", String(key === value));
+    }
+    try {
+      localStorage.setItem(TEXT_SIZE_KEY, value);
+    } catch {
+      /* 保存できなくても表示は切り替わる */
+    }
+  };
+
+  let saved = "normal";
+  try {
+    saved = localStorage.getItem(TEXT_SIZE_KEY) || "normal";
+  } catch {
+    /* ignore */
+  }
+  apply(saved);
+
+  for (const key of TEXT_SIZES) {
+    const button = document.getElementById(`textsize-${key}`);
+    if (button) button.addEventListener("click", () => apply(key));
+  }
+}

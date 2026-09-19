@@ -1,6 +1,8 @@
-import { api, session, showError, setText } from "./api.js";
+import { api, session, showError, setText, setupTextSize } from "./api.js";
 
 const $ = (id) => document.getElementById(id);
+
+setupTextSize();
 
 /* ---- 役割の選択 ---- */
 function selectRole(name) {
