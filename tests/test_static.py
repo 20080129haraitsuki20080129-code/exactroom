@@ -259,3 +259,29 @@ def test_creation_token_field_is_not_hidden_in_a_details():
     )
     source = strip_comments(read("js", "home.js"))
     assert "requires_creation_token" in source, "サーバ設定を見ていない"
+
+
+def test_answer_input_offers_both_editor_and_tex():
+    """解答入力は「数式エディタ」と「TeX 直接入力」の両方を選べる。"""
+    source = read("js", "mathfield.js")
+    assert '"数式エディタ"' in source
+    assert '"TeX で入力"' in source
+    # 切り替えボタンは押下状態を aria-pressed で伝える (スクリーンリーダ対応)
+    assert 'setAttribute("aria-pressed"' in source
+    # 切り替えても入力内容が消えない
+    assert "const carried = currentValue();" in source
+
+
+def test_input_mode_is_not_conveyed_by_color_alone():
+    """選択中の入力方法が色だけで示されていないこと (CUD)。"""
+    css = read("css", "app.css")
+    assert '.input-mode-switch .mode-button[aria-pressed="true"]::before' in css
+    assert '.input-mode-switch .mode-button[aria-pressed="false"]::before' in css
+
+
+def test_symbol_pad_works_in_both_input_modes():
+    """記号ボタンは、現在の入力方法に合わせて挿入先を切り替える。"""
+    source = strip_comments(read("js", "mathfield.js"))
+    # 記号パッドは input.insert() を通すだけで、モードを自分で判断しない
+    assert "input.insert(tex)" in source
+    assert "insertIntoTextarea" in source

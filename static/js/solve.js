@@ -153,11 +153,14 @@ async function selectProblem(problemId) {
 /** MathLive の仮想キーボードの高さぶん、下に余白を作る。 */
 function setupVirtualKeyboardSpacing(input) {
   const keyboard = window.mathVirtualKeyboard;
-  if (!keyboard || !input.isRich) return;
+  // 入力方法を後から切り替えても効くよう、モードではなく
+  // math-field そのものの有無で判断する。
+  const field = input.richElement;
+  if (!keyboard || !field) return;
   const apply = () => {
     const height = keyboard.boundingRect ? keyboard.boundingRect.height : 0;
     document.body.style.paddingBottom = height ? `${Math.round(height) + 16}px` : "";
-    if (height && document.activeElement === input.element) {
+    if (height && document.activeElement === field) {
       $("submit").scrollIntoView({ block: "nearest" });
     }
   };
@@ -166,7 +169,7 @@ function setupVirtualKeyboardSpacing(input) {
   } catch {
     /* 対応していない版では何もしない */
   }
-  input.element.addEventListener("blur", () => {
+  field.addEventListener("blur", () => {
     document.body.style.paddingBottom = "";
   });
 }
