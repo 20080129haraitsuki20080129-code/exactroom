@@ -96,15 +96,17 @@
         <label for="create-secret">秘密キー (8 文字以上)</label>
         <input type="password" id="create-secret" minlength="8" maxlength="128" required>
         <p class="hint">出題者はこのキーで入ります。忘れると部屋を管理できなくなります。</p>
-        <details>
-          <summary class="small muted" style="margin-top:12px;cursor:pointer">サーバが合言葉を要求する場合</summary>
-          <label for="create-token">部屋作成の合言葉</label>
-          <input type="text" id="create-token" maxlength="128">
-        </details>
+        <div id="create-token-block" hidden>
+          <label for="create-token">部屋作成の合言葉 <span id="create-token-required"></span></label>
+          <input type="text" id="create-token" maxlength="128"
+                 autocomplete="off" placeholder="管理者から伝えられた合言葉">
+          <p class="hint" id="create-token-hint"></p>
+        </div>
         <div class="row" style="margin-top:16px">
           <button type="submit" class="primary">部屋を作る</button>
         </div>
         <div class="error-box" id="create-error" role="alert"></div>
+        <div class="error-box" id="create-disabled" role="status"></div>
         <div class="ok-box" id="create-ok" role="status"></div>
       </form>
     </div>

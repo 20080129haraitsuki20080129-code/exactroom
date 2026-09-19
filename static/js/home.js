@@ -22,6 +22,39 @@ $("role-solve").addEventListener("click", () => selectRole("solve"));
 $("role-host").addEventListener("click", () => selectRole("host"));
 if (location.hash === "#host") selectRole("host");
 
+/* ---- サーバの設定に画面を合わせる ---- */
+/* 合言葉が要るサーバなのに入力欄を隠していると、
+   403 が返ってきた理由が利用者に分からない。 */
+async function applyServerConfig() {
+  let config = null;
+  try {
+    config = await api.get("/api/rooms/-/config");
+  } catch {
+    return; // 取れなくても、入力欄を出しておけば手入力はできる
+  }
+  if (config.requires_creation_token) {
+    $("create-token-block").hidden = false;
+    $("create-token").required = true;
+    setText($("create-token-required"), "(必須)");
+    setText(
+      $("create-token-hint"),
+      "このサーバでは、部屋を作るのに合言葉が必要です。管理者に聞いてください。"
+    );
+  }
+  if (!config.allow_room_creation) {
+    $("create-form").hidden = true;
+    setText(
+      $("create-disabled"),
+      "このサーバでは新しい部屋を作れません。すでにある部屋の出題者としてログインしてください。"
+    );
+  }
+  if (config.min_secret_chars) {
+    $("create-secret").minLength = config.min_secret_chars;
+  }
+}
+
+applyServerConfig();
+
 /* URL の ?code= を自動入力 (出題者が配る参加リンク用) */
 const params = new URLSearchParams(location.search);
 const presetCode = (params.get("code") || "").toUpperCase();
@@ -92,6 +125,12 @@ $("create-form").addEventListener("submit", async (event) => {
   const secret = $("create-secret").value;
   if (secret.length < 8) {
     showError($("create-error"), "秘密キーは 8 文字以上にしてください。");
+    return;
+  }
+  const tokenBlock = $("create-token-block");
+  if (!tokenBlock.hidden && !$("create-token").value.trim()) {
+    showError($("create-error"), "部屋作成の合言葉を入力してください。");
+    $("create-token").focus();
     return;
   }
   try {

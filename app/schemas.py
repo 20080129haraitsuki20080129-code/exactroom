@@ -84,6 +84,20 @@ class ParseOptionsIn(BaseModel):
 # --------------------------------------------------------------------------
 
 
+class PublicConfig(BaseModel):
+    """ログイン前でも取得できるサーバの設定。
+
+    「部屋を作るのに合言葉が要るのか」をブラウザ側が知らないと、
+    入力欄を出せずに 403 の理由が分からなくなる。
+    """
+
+    allow_room_creation: bool
+    requires_creation_token: bool
+    room_code_min_length: int
+    min_secret_chars: int
+    max_answer_chars: int
+
+
 class RoomCreate(BaseModel):
     title: str = Field(default="", max_length=LIMITS["title"])
     secret: str = Field(min_length=8, max_length=128)

@@ -242,3 +242,20 @@ def test_focus_is_visible():
     css = read("css", "app.css")
     assert ":focus-visible" in css
     assert re.search(r":focus-visible\s*\{[^}]*outline:", css)
+
+
+def test_creation_token_field_is_not_hidden_in_a_details():
+    """合言葉の欄を折りたたみに隠さないこと。
+
+    隠していたせいで「部屋が作れない」という問い合わせが実際に起きた。
+    """
+    html = read("index.html")
+    assert 'id="create-token-block"' in html
+    block_start = html.index('id="create-token-block"')
+    before = html[:block_start]
+    # 直前の <details> が閉じられていること (= 折りたたみの中にいない)
+    assert before.count("<details>") == before.count("</details>"), (
+        "合言葉の欄が <details> の中にある"
+    )
+    source = strip_comments(read("js", "home.js"))
+    assert "requires_creation_token" in source, "サーバ設定を見ていない"

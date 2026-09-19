@@ -25,6 +25,7 @@ from ..schemas import (
     HostSession,
     JoinRequest,
     JoinResponse,
+    PublicConfig,
     RoomCreate,
     RoomCreated,
     RoomPublic,
@@ -54,6 +55,21 @@ def _host_token(room: Room, settings: Settings) -> tuple[str, int]:
     return token, ttl
 
 
+@router.get("/-/config", response_model=PublicConfig)
+def public_config(settings: Settings = Depends(get_settings)) -> PublicConfig:
+    """ブラウザが画面を組み立てるのに必要な設定だけを返す。
+
+    秘密の値そのものは返さない (合言葉が「要るかどうか」だけ)。
+    """
+    return PublicConfig(
+        allow_room_creation=settings.allow_room_creation,
+        requires_creation_token=bool(settings.room_creation_token),
+        room_code_min_length=settings.room_code_min_length,
+        min_secret_chars=settings.min_secret_chars,
+        max_answer_chars=settings.max_answer_chars,
+    )
+
+
 @router.post("", response_model=RoomCreated, status_code=status.HTTP_201_CREATED)
 def create_room(
     payload: RoomCreate,
@@ -67,7 +83,16 @@ def create_room(
     if settings.room_creation_token and not _constant_eq(
         payload.creation_token, settings.room_creation_token
     ):
-        raise HTTPException(status_code=403, detail="部屋作成の合言葉が違います。")
+        if not payload.creation_token.strip():
+            raise HTTPException(
+                status_code=403,
+                detail="このサーバで部屋を作るには「部屋作成の合言葉」が必要です。"
+                "サーバの管理者に聞いて入力してください。",
+            )
+        raise HTTPException(
+            status_code=403,
+            detail="部屋作成の合言葉が違います。もう一度確認してください。",
+        )
     if len(payload.secret) < settings.min_secret_chars:
         raise HTTPException(
             status_code=400,

@@ -608,3 +608,51 @@ def test_rooms_run_independently_at_the_same_time(app_client):
         mine = rooms[me]["host"].get("/api/host/submissions").json()
         assert len(mine) == 1
         assert mine[0]["problem_id"] == rooms[me]["problem"]["id"]
+
+
+def test_public_config_tells_client_what_is_required(app_client, monkeypatch):
+    """合言葉が要るサーバかどうかを、ログイン前のブラウザが知れること。
+
+    これが無いと入力欄を出せず、403 の理由が利用者に分からない
+    (実際に「部屋が作れない」という形で表面化した)。
+    """
+    config = app_client.get("/api/rooms/-/config").json()
+    assert config["requires_creation_token"] is False
+    assert config["allow_room_creation"] is True
+    assert config["room_code_min_length"] >= 1
+    # 合言葉そのものは返さない
+    assert "room_creation_token" not in config
+    assert "secret" not in str(config)
+
+
+def test_missing_creation_token_explains_itself(app_client, monkeypatch):
+    from app import config as config_module
+
+    monkeypatch.setenv("ROOM_CREATION_TOKEN", "aikotoba-123")
+    config_module.get_settings.cache_clear()
+    try:
+        public = app_client.get("/api/rooms/-/config").json()
+        assert public["requires_creation_token"] is True
+
+        blank = app_client.post(
+            "/api/rooms", json={"secret": "secret-key-12345", "title": "x"}
+        )
+        assert blank.status_code == 403
+        assert "合言葉" in blank.json()["detail"]
+        assert "必要" in blank.json()["detail"]
+
+        wrong = app_client.post(
+            "/api/rooms",
+            json={"secret": "secret-key-12345", "creation_token": "chigau"},
+        )
+        assert wrong.status_code == 403
+        assert "違います" in wrong.json()["detail"]
+
+        ok = app_client.post(
+            "/api/rooms",
+            json={"secret": "secret-key-12345", "creation_token": "aikotoba-123"},
+        )
+        assert ok.status_code == 201
+    finally:
+        monkeypatch.delenv("ROOM_CREATION_TOKEN", raising=False)
+        config_module.get_settings.cache_clear()
