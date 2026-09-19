@@ -616,13 +616,21 @@ def test_public_config_tells_client_what_is_required(app_client, monkeypatch):
     これが無いと入力欄を出せず、403 の理由が利用者に分からない
     (実際に「部屋が作れない」という形で表面化した)。
     """
-    config = app_client.get("/api/rooms/-/config").json()
+    response = app_client.get("/api/rooms/-/config")
+    assert response.status_code == 200
+    config = response.json()
+    # 返すのは「画面を組み立てるのに要る事実」だけ。秘密の値そのものは返さない。
+    assert set(config) == {
+        "allow_room_creation",
+        "requires_creation_token",
+        "room_code_min_length",
+        "min_secret_chars",
+        "max_answer_chars",
+    }
     assert config["requires_creation_token"] is False
     assert config["allow_room_creation"] is True
     assert config["room_code_min_length"] >= 1
-    # 合言葉そのものは返さない
-    assert "room_creation_token" not in config
-    assert "secret" not in str(config)
+    assert "SECRET_KEY" not in response.text
 
 
 def test_missing_creation_token_explains_itself(app_client, monkeypatch):
