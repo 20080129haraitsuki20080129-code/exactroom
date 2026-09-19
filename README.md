@@ -90,7 +90,13 @@ docker compose up --build
 ### 解答者
 
 1. 部屋コードと名前を入れて参加します(ログイン不要)。
-2. 問題を選び、数式エディタ(MathLive)で解答を入力して「提出する」。
+2. 問題を選び、解答を入力して「提出する」。入力方法は 2 つあり、
+   ボタンひとつでいつでも行き来できます(**書いた内容はそのまま引き継がれます**)。
+   - **数式エディタ** … MathLive。ボタンや仮想キーボードで組み立てる。
+   - **TeX で入力** … TeX をそのまま書く。コピー&ペーストや、
+     `\frac{1}{2}` のような書き方に慣れている人向け。
+   どちらで書いても「入力内容 (TeX)」欄に、実際に提出される TeX が出ます。
+   選んだ入力方法はその端末に記憶されます。
 3. 判定が **AC / WA / 判定保留** で返ります。自分の提出履歴も見られます。
 
 初回参加時に**復帰コード**が表示されます。別の端末から同じ名前で入り直すときに必要に
@@ -168,28 +174,86 @@ docker compose up --build
 
 ## 対応している TeX 記法
 
+コマンドは**ホワイトリスト方式**です。下の表に無いものは必ずエラーになり、
+黙って別の意味に読み替えることはありません。
+
 | 分類 | 例 |
 | --- | --- |
-| 四則・冪 | `1+2-3*4/5`, `x^2`, `2^{-1}`, `\cdot`, `\times`, `\div` |
-| 分数 | `\frac{1}{2}`, `\dfrac`, `\tfrac`, `\cfrac` |
-| 根号 | `\sqrt{2}`, `\sqrt[3]{8}` |
-| 絶対値 | `|x|`, `\left|x\right|` |
-| 三角・双曲線 | `\sin`, `\cos`, `\tan`, `\cot`, `\sec`, `\csc`, `\arcsin`…, `\sinh`… |
-| 指数・対数 | `\exp`, `\ln`, `\log`, `\log_{2}8`, `\lg` |
-| 定数 | `\pi`, `e`, `i`, `\infty` |
-| ギリシャ文字 | `\alpha` … `\omega`, `\Gamma` … `\Omega` |
-| 添字 | `x_1`, `a_{n+1}`(`a_{1+n}` と同一視されます) |
-| 階乗・二項係数 | `n!`, `\binom{5}{2}` |
-| 共役 | `\overline{z}` |
-| 関係式 | `=`, `\ne`, `<`, `>`, `\le`, `\ge`, `0 \le x \le 1` |
-| 集合 | `\{1,2,3\}`, `\emptyset` |
+| 四則・冪 | `1+2-3*4/5`, `x^2`, `2^{-1}`, `\cdot`, `\times`, `\div`, `\ast` |
+| 分数 | `\frac{1}{2}`, `\frac12`, `\dfrac`, `\tfrac`, `\cfrac` |
+| 根号 | `\sqrt{2}`, `\sqrt2`, `\sqrt[3]{8}`, `\sqrt[n]{x}` |
+| 絶対値・ノルム | `|x|`, `\left|x\right|`, `\lvert x\rvert`, `\vert x\vert`, `\lVert x\rVert` |
+| 床・天井 | `\lfloor x\rfloor`, `\lceil x\rceil` |
+| 三角・双曲線 | `\sin` `\cos` `\tan` `\cot` `\sec` `\csc`, `\arcsin`…`\arccsc`, `\sinh`…`\coth` |
+| 逆関数表記 | `\sin^{-1}x`, `\tan^{-1}x`, `\cot^{-1}x`(`\arcsin x` などと同じ) |
+| 指数・対数 | `\exp`, `\ln`, `\log`, `\log_{2}8`, `\log_23`, `\lg` |
+| 度数法 | `90^\circ`, `\sin 30^{\circ}`(厳密に `π/180` 倍として扱います) |
+| 定数 | `\pi`, `e`, `\mathrm{e}`, `i`, `\infty` |
+| ギリシャ文字 | `\alpha` … `\omega`, `\Gamma` … `\Omega`, `\varepsilon` `\vartheta` `\varphi` など |
+| 添字 | `x_1`, `x_{ab}`, `a_{n+1}`(`a_{1+n}` と同一視されます) |
+| 階乗・二項係数 | `n!`, `\binom{5}{2}`, `\dbinom`, `\tbinom`, `\binom52` |
+| 共役 | `\overline{z}`, `\bar{z}` |
+| 複数引数の関数 | `\gcd(12,18)`, `\max(a,b)`, `\min(a,b)`, `\operatorname{lcm}(4,6)` |
+| その他の関数 | `\operatorname{abs}` `\operatorname{sgn}` `\operatorname{floor}` `\operatorname{ceil}` `\operatorname{conj}` |
+| 書体 | `\mathrm{}` `\mathit{}` `\mathbf{}` `\mathsf{}` `\mathtt{}` `\boldsymbol{}` `\bm{}` |
+| 装飾記号 | `\vec{a}` `\hat{a}` `\tilde{a}` `\dot{a}` `\ddot{a}`(素の `a` とは**別の記号**) |
+| 括弧 | `()` `[]` `{}`, `\left(…\right)`, `\langle…\rangle`, `\bigl(…\bigr)` |
+| 複号 | `\pm`, `\mp`(**複号同順**で 2 通りに展開し、複数解として扱います) |
+| 関係式 | `=`, `\ne`, `<`, `>`, `\le`, `\ge`, `\leqq`, `\geqq`, `0 \le x \le 1` |
+| 集合 | `\{1,2,3\}`, `\emptyset`, `\varnothing` |
 | 複数解 | `1, 2` |
+| 空白・装飾 | `\,` `\;` `\quad` `\displaystyle` `\big`〜`\Biggr`(すべて無視されます) |
+
+### Unicode の数学記号(LuaLaTeX / XeLaTeX 風の書き方)
+
+LuaLaTeX や XeLaTeX のように、記号を**そのまま**書いても構いません。
+字句解析の前に、対応する TeX 表記へ機械的に置き換えています
+(意味づけは一切変わりません)。
+
+| 書けるもの | 同じ意味の TeX |
+| --- | --- |
+| `π` `α` `θ` `Ω` | `\pi` `\alpha` `\theta` `\Omega` |
+| `√2` | `\sqrt{2}` |
+| `x²` `x³` `x⁻¹` `a₁` | `x^{2}` `x^{3}` `x^{-1}` `a_{1}` |
+| `½` `¾` | `\frac{1}{2}` `\frac{3}{4}` |
+| `×` `÷` `±` `∓` `−` | `\times` `\div` `\pm` `\mp` `-` |
+| `≦` `≧` `≠` `≤` `≥` | `\le` `\ge` `\ne` `\le` `\ge` |
+| `∞` `∅` `°` | `\infty` `\emptyset` `^\circ` |
+| `⌊x⌋` `⌈x⌉` `‖x‖` | `\lfloor x\rfloor` `\lceil x\rceil` `\lVert x\rVert` |
+| `（）` `１２３` `，` | `()` `123` `,`(全角は半角として読みます) |
 
 ### 意図的に対応していないもの
 
-`\sum` `\prod` `\int` `\lim` / 行列環境(`\begin{pmatrix}` など) / `\pm` `\mp` /
-`\text{}` / `\vec` `\hat` / 未知のコマンド全般。
-いずれも**明示的なエラー**になり、黙って誤判定することはありません。
+| 記法 | 理由 |
+| --- | --- |
+| `\sum` `\prod` `\int` `\lim` | 厳密な同値判定が成立しないため |
+| `\begin{pmatrix}` などの環境 | 行列に未対応 |
+| `\cup` `\cap` `\in` `\subset` | 集合演算に未対応 |
+| `\mathbb{R}` `\mathbb{Z}` など | 数の集合に未対応 |
+| `\approx` `\sim`(≒ ∽) | 近似は厳密判定できないため |
+| `\equiv`(合同) `\propto`(比例) | 未対応 |
+| `\to` `\Rightarrow` `\iff` | 未対応 |
+| `\ldots` `\cdots`(…) | 何が続くか確定しないため |
+| `\text{}` `\%` `\partial` `\nabla` | 未対応 |
+
+いずれも**理由付きの明示的なエラー**になり、黙って誤判定することはありません。
+
+### 括弧を省いた引数の読み方
+
+本来の TeX と同じく、`\frac` `\binom` `\log_` の引数に括弧を付けない場合は
+**1 文字だけ**を引数とします。
+
+- `\frac12` = `\frac{1}{2}`、`\binom52` = `\binom{5}{2}`、`\log_23` = `\log_{2}3`
+
+ただし **`\sqrt` と `^` `_` は従来どおり数値全体**を取ります
+(`\sqrt12` = `\sqrt{12}`、`x^12` = `x^{12}`)。本来の TeX とは異なりますが、
+もともとその意味で通っていたため、黙って意味を変えないようにしています。
+迷ったときは `\sqrt{12}` `x^{12}` のように括弧を付けてください。
+
+### 関数名は必ずバックスラッシュ付きで
+
+`\sin x` は正弦ですが、バックスラッシュの無い `sin x` は **`s·i·n·x` という積**として
+読まれます(TeX の仕様どおり)。`\sin` `\cos` `\log` のように必ず `\` を付けてください。
 
 ### 括弧なし関数適用の規則
 
@@ -280,7 +344,8 @@ docs/                  スキーマ・公開手順・セキュリティ・判定
   `/solve` でも `/static/solve.html` でも同じファイルがそのまま動きます。
 - **DB は `DATABASE_URL` を差し替えるだけ**で SQLite ↔ PostgreSQL を移行できます。
 - **CDN も差し替え可能**。`static/js/config.js` に候補 URL を並べてあり、
-  全部失敗したら自動的にプレーン TeX 入力にフォールバックします。
+  全部失敗したら自動的にプレーン TeX 入力だけのモードになります
+  (もともと TeX 直接入力はいつでも選べるので、機能は失われません)。
 - **標準の ASGI アプリ + Dockerfile** なので、Render / Koyeb /
   Hugging Face Spaces / 自宅サーバ + Cloudflare Tunnel のどこでも動きます。
 - レート制限は `app/ratelimit.py` の `RateLimiter` を差し替えれば Redis 等に移せます。

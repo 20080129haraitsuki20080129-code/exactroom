@@ -99,15 +99,27 @@ def test_log_base_option():
         r"__import__('os')",
         r"\sum_{i=1}^{n}i",
         r"\begin{pmatrix}1\end{pmatrix}",
-        r"1 \pm 2",
         r"x @ y",
         r"\\",
         r"\frac{1}",
         r"x +",
         r"",
         r"   ",
-        r"\vec{a}",
         r"\int x dx",
+        r"\cup",
+        r"\in",
+        r"\mathbb{R}",
+        r"\approx",
+        r"\equiv",
+        r"\ldots",
+        r"\partial x",
+        r"\vec{a+b}",
+        r"\gcd(6)",
+        r"\gcd 6, 9",
+        "x ≒ y",
+        "x ∈ A",
+        "1 … 9",
+        "あ",
     ],
 )
 def test_rejects_dangerous_or_unsupported(source):
@@ -227,3 +239,199 @@ def test_subscripts_are_labels_unless_they_contain_operators(first, second, same
     演算子を含まない添字は書かれた順のラベルとして扱う。
     """
     assert (parse_latex_expr(first) == parse_latex_expr(second)) is same
+
+
+# --------------------------------------------------------------------------
+# Unicode の数学記号 (LuaLaTeX / XeLaTeX でそのまま書ける書き方)
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "unicode_source,tex_source",
+    [
+        ("π", r"\pi"),
+        ("2π", r"2\pi"),
+        ("α+β", r"\alpha+\beta"),
+        ("θ", r"\theta"),
+        ("Ω", r"\Omega"),
+        ("√2", r"\sqrt{2}"),
+        ("√(x+1)", r"\sqrt{x+1}"),
+        ("2×3", r"2\times 3"),
+        ("6÷2", r"6\div 2"),
+        ("x²", r"x^{2}"),
+        ("x²³", r"x^{23}"),
+        ("x⁻¹", r"x^{-1}"),
+        ("a₁", r"a_{1}"),
+        ("½", r"\frac{1}{2}"),
+        ("∞", r"\infty"),
+        ("−5", r"-5"),
+        ("（x+1）", r"(x+1)"),
+        ("１２３", r"123"),
+        ("⌊x⌋", r"\lfloor x\rfloor"),
+        ("⌈x⌉", r"\lceil x\rceil"),
+        ("90°", r"\frac{\pi}{2}"),
+    ],
+)
+def test_unicode_is_equivalent_to_tex(unicode_source, tex_source):
+    assert parse_latex_expr(unicode_source) == parse_latex_expr(tex_source)
+
+
+@pytest.mark.parametrize(
+    "unicode_source,tex_source",
+    [
+        ("x≦1", r"x\le 1"),
+        ("x≧1", r"x\ge 1"),
+        ("x≠1", r"x\ne 1"),
+        ("x≤1", r"x\le 1"),
+    ],
+)
+def test_unicode_relations(unicode_source, tex_source):
+    a = parse_latex_answer(unicode_source)
+    b = parse_latex_answer(tex_source)
+    assert a.kind == b.kind == "rel"
+    assert a.single == b.single
+
+
+def test_unicode_error_position_points_at_the_original_string():
+    """正規化で文字列が伸びても、エラー位置は元の入力の位置で返す。"""
+    with pytest.raises(UnsupportedLatexError) as info:
+        parse_latex_answer("π+∫")
+    assert info.value.position == 2
+
+
+# --------------------------------------------------------------------------
+# 複号 (\pm, \mp)
+# --------------------------------------------------------------------------
+
+
+def test_plus_minus_expands_to_two_answers():
+    answer = parse_latex_answer(r"\pm 2")
+    assert answer.kind == "list"
+    assert set(answer.items) == {sp.Integer(2), sp.Integer(-2)}
+
+
+def test_plus_minus_in_a_relation():
+    answer = parse_latex_answer(r"x = \pm 2")
+    assert answer.kind == "list"
+    x = sp.Symbol("x", real=True)
+    assert set(answer.items) == {sp.Eq(x, 2, evaluate=False),
+                                 sp.Eq(x, -2, evaluate=False)}
+
+
+def test_plus_minus_follows_the_same_order():
+    r"""複号同順: ``a \pm b`` と ``c \mp d`` は逆の符号で対応する。"""
+    answer = parse_latex_answer(r"1 \pm 2 \mp 4")
+    assert answer.kind == "list"
+    assert set(answer.items) == {sp.Integer(1 + 2 - 4), sp.Integer(1 - 2 + 4)}
+
+
+def test_plus_minus_collapses_when_both_branches_agree():
+    answer = parse_latex_answer(r"x \pm 0")
+    assert answer.kind == "expr"
+    assert answer.single == sp.Symbol("x", real=True)
+
+
+def test_plus_minus_inside_a_set():
+    answer = parse_latex_answer(r"\{\pm 1\}")
+    assert answer.kind == "set"
+    assert answer.single == sp.FiniteSet(1, -1)
+
+
+def test_unicode_plus_minus():
+    assert parse_latex_answer("±2").items == parse_latex_answer(r"\pm 2").items
+
+
+# --------------------------------------------------------------------------
+# 追加した TeX コマンド
+# --------------------------------------------------------------------------
+
+_x = sp.Symbol("x", real=True)
+
+
+@pytest.mark.parametrize(
+    "source,expected",
+    [
+        (r"\vert x\vert", sp.Abs(_x)),
+        (r"\lvert x\rvert", sp.Abs(_x)),
+        (r"\lVert x\rVert", sp.Abs(_x)),
+        (r"\Vert x\Vert", sp.Abs(_x)),
+        (r"\left\lVert x\right\rVert", sp.Abs(_x)),
+        (r"\langle x\rangle", _x),
+        (r"\lfloor 2.7\rfloor", sp.Integer(2)),
+        (r"\lceil 2.1\rceil", sp.Integer(3)),
+        (r"\left\lfloor 2.7\right\rfloor", sp.Integer(2)),
+        (r"\left.x\right)", _x),
+        (r"\bigl(x+1\bigr)", _x + 1),
+        (r"\Bigl(x+1\Bigr)", _x + 1),
+        (r"\bar{z}", sp.conjugate(_x).subs(_x, sp.Symbol("z", real=True))),
+        (r"\tbinom{5}{2}", sp.Integer(10)),
+        (r"\gcd(12,18)", sp.Integer(6)),
+        (r"\operatorname{lcm}(4,6)", sp.Integer(12)),
+        (r"\max(2,5)", sp.Integer(5)),
+        (r"\min(2,5)", sp.Integer(2)),
+        (r"\operatorname{floor}(2.7)", sp.Integer(2)),
+        (r"\cot^{-1}1", sp.acot(1)),
+        (r"\arccot 1", sp.acot(1)),
+        (r"90^\circ", sp.pi / 2),
+        (r"\sin 30^{\circ}", sp.Rational(1, 2)),
+        (r"\mathsf{x}", _x),
+        (r"\boldsymbol{x}", _x),
+    ],
+)
+def test_new_commands(source, expected):
+    assert parse_latex_expr(source) == expected
+
+
+def test_decorated_symbols_differ_from_plain_ones():
+    r"""``\vec{a}`` は ``a`` とは別の記号として扱う。"""
+    assert parse_latex_expr(r"\vec{a}") != parse_latex_expr("a")
+    assert parse_latex_expr(r"\vec{a}") == parse_latex_expr(r"\vec a")
+    assert parse_latex_expr(r"\vec{a}") != parse_latex_expr(r"\hat{a}")
+
+
+@pytest.mark.parametrize(
+    "source,fragment",
+    [
+        (r"\sum_{k=1}^{n}k", "総和"),
+        (r"\int x", "積分"),
+        (r"\lim x", "極限"),
+        (r"A\cup B", "集合の演算"),
+        (r"\mathbb{R}", "数の集合"),
+        (r"x\approx 1", "近似"),
+        (r"\ldots", "…"),
+    ],
+)
+def test_unsupported_commands_explain_why(source, fragment):
+    with pytest.raises(UnsupportedLatexError) as info:
+        parse_latex_answer(source)
+    assert fragment in info.value.message
+
+
+@pytest.mark.parametrize(
+    "source,expected",
+    [
+        (r"\frac12", sp.Rational(1, 2)),
+        (r"\frac1{2}", sp.Rational(1, 2)),
+        (r"\frac{1}2", sp.Rational(1, 2)),
+        (r"\tfrac34", sp.Rational(3, 4)),
+        (r"\frac123", sp.Rational(3, 2)),
+        (r"\binom52", sp.Integer(10)),
+        (r"\log_23", sp.log(3) / sp.log(2)),
+        # 括弧を付けたときの意味は変わらない
+        (r"\frac{12}{5}", sp.Rational(12, 5)),
+        (r"\log_{2}8", sp.Integer(3)),
+    ],
+)
+def test_unbraced_argument_takes_one_character(source, expected):
+    r"""本来の TeX と同じく ``\frac12`` は ``\frac{1}{2}``。"""
+    assert parse_latex_expr(source) == expected
+
+
+def test_unbraced_sqrt_keeps_the_whole_number():
+    r"""``\sqrt12`` はこれまで通り ``\sqrt{12}``。
+
+    ``\frac12`` はもともとエラーだったので本来の TeX に合わせたが、
+    ``\sqrt12`` は従来 ``\sqrt{12}`` として通っていた。黙って意味を
+    変えると誤判定になるため、こちらは変更しない。
+    """
+    assert parse_latex_expr(r"\sqrt12") == sp.sqrt(12)

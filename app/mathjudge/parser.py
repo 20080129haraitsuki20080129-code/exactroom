@@ -90,6 +90,7 @@ GREEK = {
     r"\mu": "mu",
     r"\nu": "nu",
     r"\xi": "xi",
+    r"\varpi": "varpi",
     r"\rho": "rho",
     r"\varrho": "varrho",
     r"\sigma": "sigma",
@@ -125,6 +126,9 @@ UNARY_FUNCTIONS: dict[str, Callable] = {
     r"\arcsin": sp.asin,
     r"\arccos": sp.acos,
     r"\arctan": sp.atan,
+    r"\arccot": sp.acot,
+    r"\arcsec": sp.asec,
+    r"\arccsc": sp.acsc,
     r"\sinh": sp.sinh,
     r"\cosh": sp.cosh,
     r"\tanh": sp.tanh,
@@ -138,9 +142,13 @@ INVERSE_FUNCTIONS: dict[str, Callable] = {
     r"\sin": sp.asin,
     r"\cos": sp.acos,
     r"\tan": sp.atan,
+    r"\cot": sp.acot,
+    r"\sec": sp.asec,
+    r"\csc": sp.acsc,
     r"\sinh": sp.asinh,
     r"\cosh": sp.acosh,
     r"\tanh": sp.atanh,
+    r"\coth": sp.acoth,
 }
 
 #: \operatorname{...} / 素の綴りで許可する関数名
@@ -162,6 +170,111 @@ NAMED_FUNCTIONS: dict[str, Callable] = {
     "abs": sp.Abs,
     "sgn": sp.sign,
     "sign": sp.sign,
+    "arccot": sp.acot,
+    "arcsec": sp.asec,
+    "arccsc": sp.acsc,
+    "coth": sp.coth,
+    "sech": sp.sech,
+    "csch": sp.csch,
+    "floor": sp.floor,
+    "ceil": sp.ceiling,
+    "ceiling": sp.ceiling,
+    "conj": sp.conjugate,
+}
+
+#: 括弧とカンマで複数の引数を取る関数 (``\gcd(12,18)`` など)
+MULTI_ARG_FUNCTIONS: dict[str, Callable] = {
+    "gcd": sp.gcd,
+    "lcm": sp.lcm,
+    "max": sp.Max,
+    "min": sp.Min,
+}
+
+#: ``\gcd`` のようにコマンドとしても書ける複数引数関数
+MULTI_ARG_COMMANDS: dict[str, str] = {
+    r"\gcd": "gcd",
+    r"\max": "max",
+    r"\min": "min",
+}
+
+#: ``\vec{a}`` のような装飾。装飾した記号は素の記号とは別物として扱う
+#: (``\vec{a}`` と ``a`` を同一視しないため)。
+DECORATORS: dict[str, str] = {
+    r"\vec": "vec",
+    r"\hat": "hat",
+    r"\tilde": "tilde",
+    r"\dot": "dot",
+    r"\ddot": "ddot",
+    r"\check": "check",
+    r"\breve": "breve",
+    r"\acute": "acute",
+    r"\grave": "grave",
+}
+
+#: 書体コマンド。中身をそのまま式として読む (``\mathrm{e}`` だけ特別扱い)。
+FONT_COMMANDS = frozenset(
+    {
+        r"\mathrm",
+        r"\mathit",
+        r"\mathbf",
+        r"\mathsf",
+        r"\mathtt",
+        r"\mathnormal",
+        r"\boldsymbol",
+        r"\bm",
+    }
+)
+
+#: 意図的に対応しないコマンドと、その理由 (「未対応のコマンド」より親切に)
+UNSUPPORTED_MESSAGES: dict[str, str] = {
+    r"\sum": "総和 \\sum には対応していません。",
+    r"\prod": "総乗 \\prod には対応していません。",
+    r"\int": "積分 \\int には対応していません。",
+    r"\oint": "積分 \\oint には対応していません。",
+    r"\iint": "積分 \\iint には対応していません。",
+    r"\iiint": "積分 \\iiint には対応していません。",
+    r"\lim": "極限 \\lim には対応していません。",
+    r"\limsup": "極限には対応していません。",
+    r"\liminf": "極限には対応していません。",
+    r"\cup": "集合の演算 (∪ ∩ ∖) には対応していません。",
+    r"\cap": "集合の演算 (∪ ∩ ∖) には対応していません。",
+    r"\setminus": "集合の演算 (∪ ∩ ∖) には対応していません。",
+    r"\in": "集合の所属 (∈ ∉ ⊂) には対応していません。",
+    r"\notin": "集合の所属 (∈ ∉ ⊂) には対応していません。",
+    r"\ni": "集合の所属 (∈ ∉ ⊂) には対応していません。",
+    r"\subset": "集合の包含 (⊂ ⊃ ⊆) には対応していません。",
+    r"\supset": "集合の包含 (⊂ ⊃ ⊆) には対応していません。",
+    r"\subseteq": "集合の包含 (⊂ ⊃ ⊆) には対応していません。",
+    r"\supseteq": "集合の包含 (⊂ ⊃ ⊆) には対応していません。",
+    r"\mathbb": "数の集合 (ℝ ℤ ℚ ℕ ℂ) には対応していません。",
+    r"\mathcal": "\\mathcal には対応していません。",
+    r"\mathfrak": "\\mathfrak には対応していません。",
+    r"\mathscr": "\\mathscr には対応していません。",
+    r"\to": "矢印 (→ ⇒ ⇔) には対応していません。",
+    r"\rightarrow": "矢印 (→ ⇒ ⇔) には対応していません。",
+    r"\Rightarrow": "矢印 (→ ⇒ ⇔) には対応していません。",
+    r"\Leftrightarrow": "矢印 (→ ⇒ ⇔) には対応していません。",
+    r"\implies": "矢印 (→ ⇒ ⇔) には対応していません。",
+    r"\iff": "矢印 (→ ⇒ ⇔) には対応していません。",
+    r"\approx": "近似 (≈ ≒) は厳密判定できないため対応していません。",
+    r"\sim": "近似 (∽ ∼) は厳密判定できないため対応していません。",
+    r"\equiv": "合同 (≡) には対応していません。",
+    r"\propto": "比例 (∝) には対応していません。",
+    r"\therefore": "「ゆえに」などの記号は式に含められません。",
+    r"\because": "「なぜならば」などの記号は式に含められません。",
+    r"\ldots": "「…」は何が続くか確定しないため使えません。",
+    r"\cdots": "「…」は何が続くか確定しないため使えません。",
+    r"\dots": "「…」は何が続くか確定しないため使えません。",
+    r"\vdots": "「…」は何が続くか確定しないため使えません。",
+    r"\forall": "論理記号 (∀ ∃) には対応していません。",
+    r"\exists": "論理記号 (∀ ∃) には対応していません。",
+    r"\partial": "微分 (∂ d/dx) には対応していません。",
+    r"\nabla": "微分 (∇) には対応していません。",
+    r"\mid": "「｜」を区切りとして使う書き方には対応していません。",
+    r"\nmid": "「｜」を区切りとして使う書き方には対応していません。",
+    r"\%": "パーセント記号は使えません。100 で割った数を書いてください。",
+    r"\degree": "角度は 90^\\circ のように書いてください。",
+    r"\circ": "合成写像 (∘) には対応していません。角度なら 90^\\circ と書いてください。",
 }
 
 RELATION_OPS = {
@@ -179,6 +292,20 @@ RELATION_OPS = {
     r"\geq": sp.Ge,
     r"\geqq": sp.Ge,
 }
+
+#: 開き括弧コマンド -> (閉じ括弧の候補, 包む関数, 絶対値と同じ扱いか)
+PAIRED_DELIMS: dict[str, tuple[tuple[str, ...], Callable | None, bool]] = {
+    r"\lvert": ((r"\rvert", r"\vert", "|"), sp.Abs, True),
+    r"\vert": ((r"\rvert", r"\vert", "|"), sp.Abs, True),
+    r"\lVert": ((r"\rVert", r"\Vert"), sp.Abs, True),
+    r"\Vert": ((r"\rVert", r"\Vert"), sp.Abs, True),
+    r"\lfloor": ((r"\rfloor",), sp.floor, False),
+    r"\lceil": ((r"\rceil",), sp.ceiling, False),
+    r"\langle": ((r"\rangle",), None, False),
+}
+
+#: 開きと閉じが同じ綴りの記号。暗黙の掛け算と紛らわしいので特別扱いする。
+AMBIGUOUS_ABS_DELIMS = frozenset({"|", r"\vert", r"\Vert"})
 
 MULTIPLY_OPS = {r"\cdot", r"\times", "*", r"\ast"}
 DIVIDE_OPS = {"/", r"\div"}
@@ -348,6 +475,7 @@ class LatexParser:
                                        position=self.cur.pos)
             items.append(self.parse_statement())
         if self.cur.kind != "eof":
+            self._reject_unsupported(self.cur)
             raise LatexSyntaxError(
                 f"解釈できない記号 {self.cur.value!r} が残っています。",
                 position=self.cur.pos,
@@ -372,6 +500,7 @@ class LatexParser:
                 self.cur.kind == "eof"
                 or (self.cur.kind == "punct" and self.cur.value == ",")
             ):
+                self._reject_unsupported(self.cur)
                 raise UnsupportedLatexError(
                     "集合を式の一部として使うことはできません。",
                     position=self.cur.pos,
@@ -392,6 +521,14 @@ class LatexParser:
         if len(relations) == 1:
             return relations[0]
         return sp.And(*relations)
+
+    @staticmethod
+    def _reject_unsupported(tok: Token) -> None:
+        """非対応と分かっているコマンドなら、その理由を返して打ち切る。"""
+        if tok.kind == "command" and tok.value in UNSUPPORTED_MESSAGES:
+            raise UnsupportedLatexError(
+                UNSUPPORTED_MESSAGES[tok.value], position=tok.pos
+            )
 
     def _at_set_start(self) -> bool:
         tok = self.cur
@@ -440,8 +577,9 @@ class LatexParser:
                 elif self.accept("punct", "-"):
                     node = sp.Add(node, sp.Mul(sp.Integer(-1), self.parse_term()))
                 elif self.cur.kind == "command" and self.cur.value in (r"\pm", r"\mp"):
+                    # 通常は parse_latex_answer が符号を展開するので届かない
                     raise UnsupportedLatexError(
-                        r"\pm / \mp には対応していません。答えを分けて書いてください。",
+                        r"この位置の \pm / \mp は解釈できません。",
                         position=self.cur.pos,
                     )
                 else:
@@ -485,10 +623,33 @@ class LatexParser:
     def parse_power(self):
         base = self.parse_postfix()
         if self.accept("punct", "^"):
+            if self._accept_degree():
+                # 90^\circ = 90 * pi / 180 (厳密な有理数倍として扱う)
+                return sp.Mul(base, sp.pi, sp.Pow(sp.Integer(180), sp.Integer(-1)))
             position = self.cur.pos
             exponent = self.parse_unary()
             return safe_pow(base, exponent, position)
         return base
+
+    def _accept_degree(self) -> bool:
+        """``^\\circ`` / ``^{\\circ}`` (度) を読めたら True。"""
+        tok = self.cur
+        if tok.kind == "command" and tok.value in (r"\circ", r"\degree"):
+            self.advance()
+            return True
+        if (
+            tok.kind == "punct"
+            and tok.value == "{"
+            and self.peek(1).kind == "command"
+            and self.peek(1).value in (r"\circ", r"\degree")
+            and self.peek(2).kind == "punct"
+            and self.peek(2).value == "}"
+        ):
+            self.advance()
+            self.advance()
+            self.advance()
+            return True
+        return False
 
     def parse_postfix(self):
         node = self.parse_atom()
@@ -508,11 +669,15 @@ class LatexParser:
             return tok.value in ("(", "[", "{")
         if tok.kind == "command":
             v = tok.value
+            if v in AMBIGUOUS_ABS_DELIMS:
+                # 絶対値・ノルムの内側では、閉じ記号を新しい atom の
+                # 開始と誤解しない (|x| と同じ理由)。
+                return self.abs_depth == 0
             return (
                 v in GREEK
                 or v in UNARY_FUNCTIONS
                 or v in ATOM_COMMANDS
-                or v in (r"\left", r"\lvert", r"\vert")
+                or v == r"\left"
             )
         return False
 
@@ -682,8 +847,8 @@ class LatexParser:
 
         if cmd in (r"\frac", r"\dfrac", r"\tfrac", r"\cfrac"):
             self.advance()
-            num = self.parse_group()
-            den = self.parse_group()
+            num = self.parse_group(single_char=True)
+            den = self.parse_group(single_char=True)
             return sp.Mul(num, safe_pow(den, sp.Integer(-1), tok.pos))
 
         if cmd == r"\sqrt":
@@ -711,27 +876,41 @@ class LatexParser:
                 return sp.real_root(radicand, int(index))
             return safe_pow(radicand, safe_pow(index, sp.Integer(-1), tok.pos), tok.pos)
 
-        if cmd == r"\binom" or cmd == r"\dbinom":
+        if cmd in (r"\binom", r"\dbinom", r"\tbinom"):
             self.advance()
-            n = self.parse_group()
-            k = self.parse_group()
+            n = self.parse_group(single_char=True)
+            k = self.parse_group(single_char=True)
             return safe_binomial(n, k, tok.pos)
 
-        if cmd == r"\overline":
+        if cmd in (r"\overline", r"\bar"):
             self.advance()
             return sp.conjugate(self.parse_group())
 
-        if cmd == r"\mathrm" or cmd == r"\mathit" or cmd == r"\mathbf":
+        if cmd in FONT_COMMANDS:
             self.advance()
             return self._parse_mathrm_group()
 
-        if cmd == r"\text" or cmd == r"\textrm":
+        if cmd in DECORATORS:
+            self.advance()
+            return self.symbol(f"{DECORATORS[cmd]}_{self._read_decorated_name()}")
+
+        if cmd in MULTI_ARG_COMMANDS:
+            self.advance()
+            name = MULTI_ARG_COMMANDS[cmd]
+            return self._apply_multi_arg(MULTI_ARG_FUNCTIONS[name], name, tok)
+
+        if cmd in (r"\text", r"\textrm", r"\textit", r"\textbf", r"\mbox"):
             raise UnsupportedLatexError(r"\text{} は使用できません。",
                                         position=tok.pos)
+
+        if cmd in UNSUPPORTED_MESSAGES:
+            raise UnsupportedLatexError(UNSUPPORTED_MESSAGES[cmd], position=tok.pos)
 
         if cmd == r"\operatorname":
             self.advance()
             name = self._read_plain_name()
+            if name in MULTI_ARG_FUNCTIONS:
+                return self._apply_multi_arg(MULTI_ARG_FUNCTIONS[name], name, tok)
             func = NAMED_FUNCTIONS.get(name)
             if func is None:
                 raise UnsupportedLatexError(
@@ -779,26 +958,8 @@ class LatexParser:
                 "集合を式の一部として使うことはできません。", position=tok.pos
             )
 
-        if cmd in (r"\lvert", r"\vert"):
-            self.advance()
-            self.abs_depth += 1
-            try:
-                node = self.parse_expr()
-            finally:
-                self.abs_depth -= 1
-            if not (
-                self.accept("command", r"\rvert")
-                or self.accept("command", r"\vert")
-                or self.accept("punct", "|")
-            ):
-                raise LatexSyntaxError("絶対値の閉じ記号がありません。",
-                                       position=self.cur.pos)
-            return sp.Abs(node)
-
-        if cmd in (r"\sum", r"\prod", r"\int", r"\lim", r"\oint", r"\iint"):
-            raise UnsupportedLatexError(
-                f"{cmd} には対応していません。", position=tok.pos
-            )
+        if cmd in PAIRED_DELIMS:
+            return self._parse_paired_delim(cmd)
 
         if cmd == r"\begin":
             raise UnsupportedLatexError(
@@ -825,6 +986,87 @@ class LatexParser:
                 return sp.E
             self.i = save
         return self.parse_group()
+
+    def _read_decorated_name(self) -> str:
+        """``\\vec{a}`` / ``\\vec a`` の中身を 1 文字のラベルとして読む。"""
+        braced = self.accept("punct", "{") is not None
+        tok = self.cur
+        if tok.kind == "letter":
+            self.advance()
+            name = tok.value
+        elif tok.kind == "command" and tok.value in GREEK:
+            self.advance()
+            name = GREEK[tok.value]
+        else:
+            raise UnsupportedLatexError(
+                "装飾記号の中には 1 文字の変数だけ書けます。", position=tok.pos
+            )
+        if self.cur.kind == "punct" and self.cur.value == "_":
+            self.advance()
+            name = f"{name}_{self._read_subscript_name()}"
+        if braced:
+            self.expect("punct", "}")
+        return name
+
+    def _apply_multi_arg(self, func: Callable, name: str, tok: Token):
+        """``\\gcd(12, 18)`` のように括弧とカンマで引数を取る関数を読む。"""
+        if self.cur.kind == "command" and self.cur.value == r"\left":
+            self.advance()
+            opener = self.advance()
+            if opener.value != "(":
+                raise LatexSyntaxError(
+                    f"{name} の引数は ( ) で囲んでください。", position=opener.pos
+                )
+            args = self._read_arg_list()
+            self.expect("command", r"\right")
+            closer = self.advance()
+            if closer.value != ")":
+                raise LatexSyntaxError(
+                    f"{name} の引数は ( ) で囲んでください。", position=closer.pos
+                )
+        else:
+            if not self.accept("punct", "("):
+                raise LatexSyntaxError(
+                    f"{name} の引数は ( ) で囲んでください。", position=self.cur.pos
+                )
+            args = self._read_arg_list()
+            self.expect("punct", ")")
+        if len(args) < 2:
+            raise LatexSyntaxError(
+                f"{name} には 2 つ以上の引数が必要です。", position=tok.pos
+            )
+        return func(*args)
+
+    def _read_arg_list(self) -> list:
+        args = [self.parse_expr()]
+        while self.accept("punct", ","):
+            if len(args) >= 8:
+                raise InputTooLargeError("関数の引数が多すぎます。")
+            args.append(self.parse_expr())
+        return args
+
+    def _parse_paired_delim(self, cmd: str):
+        """``\\lfloor x \\rfloor`` のような対になる括弧コマンドを読む。"""
+        closings, wrapper, is_abs = PAIRED_DELIMS[cmd]
+        self.advance()
+        if is_abs:
+            self.abs_depth += 1
+        try:
+            node = self.parse_expr()
+        finally:
+            if is_abs:
+                self.abs_depth -= 1
+        for closing in closings:
+            if closing == "|":
+                if self.accept("punct", "|"):
+                    break
+            elif self.accept("command", closing):
+                break
+        else:
+            raise LatexSyntaxError(
+                f"{cmd} に対応する閉じ記号がありません。", position=self.cur.pos
+            )
+        return node if wrapper is None else wrapper(node)
 
     def _read_plain_name(self) -> str:
         self.expect("punct", "{")
@@ -885,17 +1127,37 @@ class LatexParser:
             raise LatexSyntaxError("関数の引数がありません。", position=tok.pos)
         return sp.Mul(*factors)
 
-    def parse_group(self):
-        """``{...}`` を読む。``{`` が無い場合は 1 つの atom を読む。"""
+    def parse_group(self, single_char: bool = False):
+        """``{...}`` を読む。``{`` が無い場合は 1 つの atom を読む。
+
+        ``single_char=True`` のときは、括弧を省いた引数を 1 文字だけ取る。
+        本来の TeX も ``\\frac12`` を ``\\frac{1}{2}`` と読むため。
+        """
         if self.accept("punct", "{"):
             node = self.parse_expr()
             self.expect("punct", "}")
             return node
+        if single_char:
+            self._split_leading_digit()
         return self.parse_power()
+
+    def _split_leading_digit(self) -> None:
+        """``12`` のような数トークンを ``1`` と ``2`` に分ける。
+
+        ``\\frac12`` / ``\\binom52`` / ``\\log_23`` のように括弧を省いた
+        書き方を、本来の TeX と同じ意味で読めるようにする。小数点を含む
+        トークンは意味が変わってしまうので分けない。
+        """
+        tok = self.cur
+        if tok.kind != "number" or len(tok.value) <= 1 or "." in tok.value:
+            return
+        self.tokens[self.i] = Token("number", tok.value[0], tok.pos)
+        self.tokens.insert(self.i + 1, Token("number", tok.value[1:], tok.pos + 1))
 
     def parse_group_or_atom(self):
         if self.cur.kind == "punct" and self.cur.value == "{":
             return self.parse_group()
+        self._split_leading_digit()
         return self.parse_atom()
 
     def _parse_left_right(self):
@@ -904,8 +1166,9 @@ class LatexParser:
         opener_value = opener.value
         if opener_value == "." :
             opener_value = "."
-        if opener_value not in ("(", "[", "|", ".", r"\{", r"\lbrace", r"\lvert",
-                                r"\vert", r"\lVert", r"\langle"):
+        if opener_value not in ("(", "[", "|", ".", r"\{", r"\lbrace", r"\lbrack",
+                                r"\lvert", r"\vert", r"\lVert", r"\Vert",
+                                r"\lfloor", r"\lceil", r"\langle"):
             raise UnsupportedLatexError(
                 rf"\left{opener_value} には対応していません。", position=opener.pos
             )
@@ -916,7 +1179,8 @@ class LatexParser:
                 )
             return self._parse_set_body(left_right=True)
 
-        inside_abs = opener_value in ("|", r"\lvert", r"\vert", r"\lVert")
+        inside_abs = opener_value in ("|", r"\lvert", r"\vert", r"\lVert",
+                                     r"\Vert")
         if inside_abs:
             self.abs_depth += 1
         try:
@@ -929,11 +1193,17 @@ class LatexParser:
         pairs = {
             "(": (")", "."),
             "[": ("]", "."),
+            r"\lbrack": (r"\rbrack", "]", "."),
             "|": ("|", r"\rvert", r"\vert", "."),
             r"\lvert": ("|", r"\rvert", r"\vert", "."),
             r"\vert": ("|", r"\rvert", r"\vert", "."),
+            r"\lVert": (r"\rVert", r"\Vert", "."),
+            r"\Vert": (r"\rVert", r"\Vert", "."),
+            r"\lfloor": (r"\rfloor", "."),
+            r"\lceil": (r"\rceil", "."),
             r"\langle": (r"\rangle", "."),
-            ".": (")", "]", "|", ".", r"\rvert", r"\}", r"\rbrace"),
+            ".": (")", "]", "|", ".", r"\rvert", r"\rVert", r"\rfloor",
+                  r"\rceil", r"\rangle", r"\}", r"\rbrace", r"\rbrack"),
         }
         allowed = pairs.get(opener_value, (".",))
         if closer.value not in allowed:
@@ -941,8 +1211,12 @@ class LatexParser:
                 f"括弧の対応が取れていません ({opener_value} … {closer.value})。",
                 position=closer.pos,
             )
-        if opener_value in ("|", r"\lvert", r"\vert"):
+        if opener_value in ("|", r"\lvert", r"\vert", r"\lVert", r"\Vert"):
             return sp.Abs(node)
+        if opener_value == r"\lfloor":
+            return sp.floor(node)
+        if opener_value == r"\lceil":
+            return sp.ceiling(node)
         return node
 
     def _parse_set_literal(self, closing: tuple[str, ...]):
@@ -1028,14 +1302,17 @@ ATOM_COMMANDS = frozenset(
         r"\sqrt",
         r"\binom",
         r"\dbinom",
+        r"\tbinom",
         r"\overline",
-        r"\mathrm",
-        r"\mathit",
-        r"\mathbf",
+        r"\bar",
         r"\operatorname",
         r"\log",
         r"\lg",
     }
+    | FONT_COMMANDS
+    | frozenset(DECORATORS)
+    | frozenset(MULTI_ARG_COMMANDS)
+    | frozenset(PAIRED_DELIMS)
 )
 
 
@@ -1065,6 +1342,61 @@ def _check_size(expr) -> None:
         raise InputTooLargeError("式が大きすぎます。")
 
 
+#: 複号 (\pm, \mp)
+PLUS_MINUS = (r"\pm", r"\mp")
+
+
+def _has_plus_minus(tokens: list[Token]) -> bool:
+    return any(t.kind == "command" and t.value in PLUS_MINUS for t in tokens)
+
+
+def _apply_plus_minus(tokens: list[Token], sign: int) -> list[Token]:
+    r"""複号を通常の ``+`` / ``-`` に置き換えたトークン列を作る。
+
+    ``sign == 1`` で ``\pm -> +``、``sign == -1`` で ``\pm -> -``。
+    ``\mp`` は常に ``\pm`` の逆。つまり複号同順で展開する。
+    """
+    out: list[Token] = []
+    for tok in tokens:
+        if tok.kind == "command" and tok.value == r"\pm":
+            out.append(Token("punct", "+" if sign > 0 else "-", tok.pos))
+        elif tok.kind == "command" and tok.value == r"\mp":
+            out.append(Token("punct", "-" if sign > 0 else "+", tok.pos))
+        else:
+            out.append(tok)
+    return out
+
+
+def _dedup_items(items: list) -> list:
+    r"""構造的に等しい要素を潰す (``x \pm 0`` が 2 解にならないように)。"""
+    unique: list = []
+    for item in items:
+        if not any(item == other for other in unique):
+            unique.append(item)
+    return unique
+
+
+def _set_elements(answer: ParsedAnswer) -> list:
+    value = answer.single
+    if value is sp.S.EmptySet:
+        return []
+    return list(value.args)
+
+
+def _merge_plus_minus(first: ParsedAnswer, second: ParsedAnswer) -> ParsedAnswer:
+    """複号を展開した 2 通りの解釈を 1 つの解答にまとめる。"""
+    if first.kind == "set" or second.kind == "set":
+        if first.kind != second.kind:  # pragma: no cover - 構文が同じなので起きない
+            raise UnsupportedLatexError("複号を解釈できません。")
+        elements = _dedup_items(_set_elements(first) + _set_elements(second))
+        value = sp.FiniteSet(*elements) if elements else sp.S.EmptySet
+        return ParsedAnswer("set", [value])
+    items = _dedup_items(list(first.items) + list(second.items))
+    if len(items) == 1:
+        return ParsedAnswer(first.kind, items)
+    return ParsedAnswer("list", items)
+
+
 def parse_latex_answer(source: str, options: ParseOptions | None = None) -> ParsedAnswer:
     """TeX 文字列を ``ParsedAnswer`` に変換する。
 
@@ -1074,8 +1406,14 @@ def parse_latex_answer(source: str, options: ParseOptions | None = None) -> Pars
     if source is None or not source.strip():
         raise LatexSyntaxError("解答が空です。")
     tokens = tokenize(source)
-    parser = LatexParser(tokens, options)
-    answer = parser.parse_answer()
+    if _has_plus_minus(tokens):
+        # 複号は「複号同順」で 2 通りに展開し、複数解として扱う。
+        # 例: x = "\\pm 2"  ->  x = 2, x = -2
+        first = LatexParser(_apply_plus_minus(tokens, 1), options).parse_answer()
+        second = LatexParser(_apply_plus_minus(tokens, -1), options).parse_answer()
+        answer = _merge_plus_minus(first, second)
+    else:
+        answer = LatexParser(tokens, options).parse_answer()
     answer.source = source
     for item in answer.items:
         _check_no_float(item)
