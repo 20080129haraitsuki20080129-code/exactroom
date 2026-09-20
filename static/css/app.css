@@ -525,6 +525,24 @@ math-field:focus-within { outline: 3px solid var(--accent); outline-offset: 2px;
   line-height: 1.7;
 }
 
+/* ページ末尾の連絡先 */
+.sitefoot {
+  max-width: 1120px;   /* main と同じ幅にそろえる */
+  margin: 0 auto 32px;
+  padding: 16px;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  text-align: center;
+}
+.sitefoot p { margin: 0; }
+.sitefoot a {
+  font-weight: 700;
+  /* 触りやすさを確保する (スマホで指が届く高さ) */
+  display: inline-block;
+  padding: 6px 4px;
+}
+
 /* 入力方法の切り替え (数式エディタ / TeX 直接入力) */
 .input-mode-switch {
   display: flex;
