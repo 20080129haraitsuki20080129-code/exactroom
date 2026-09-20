@@ -525,6 +525,9 @@ math-field:focus-within { outline: 3px solid var(--accent); outline-offset: 2px;
   line-height: 1.7;
 }
 
+/* 表の中のボタンは折り返さない (「中身」が 2 行になってしまう) */
+td button { white-space: nowrap; }
+
 /* ページ末尾の連絡先 */
 .sitefoot {
   max-width: 1120px;   /* main と同じ幅にそろえる */

@@ -32,7 +32,18 @@ TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", "")
 
 
 @pytest.fixture()
-def app_client(tmp_path, monkeypatch):
+def extra_env() -> dict:
+    """アプリ生成前に足したい環境変数。
+
+    テストモジュール側でこのフィクスチャを上書きすると、
+    ``app_client`` がその設定でアプリを組み立てる
+    (例: 管理画面を有効にする ``ADMIN_SECRET``)。
+    """
+    return {}
+
+
+@pytest.fixture()
+def app_client(tmp_path, monkeypatch, extra_env):
     from fastapi.testclient import TestClient
 
     if TEST_DATABASE_URL:
@@ -40,6 +51,9 @@ def app_client(tmp_path, monkeypatch):
     else:
         db_path = tmp_path / "test.db"
         monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_path}")
+
+    for key, value in extra_env.items():
+        monkeypatch.setenv(key, value)
 
     from app import config
     from app import db as db_module

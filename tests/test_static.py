@@ -12,8 +12,11 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 STATIC = ROOT / "static"
-HTML_FILES = ["index.html", "solve.html", "host.html"]
-JS_FILES = ["api.js", "config.js", "home.js", "host.js", "solve.js", "mathfield.js"]
+HTML_FILES = ["index.html", "solve.html", "host.html", "admin.html"]
+JS_FILES = [
+    "api.js", "config.js", "home.js", "host.js", "solve.js", "mathfield.js",
+    "admin.js",
+]
 
 
 def read(*parts: str) -> str:
@@ -285,3 +288,35 @@ def test_symbol_pad_works_in_both_input_modes():
     # 記号パッドは input.insert() を通すだけで、モードを自分で判断しない
     assert "input.insert(tex)" in source
     assert "insertIntoTextarea" in source
+
+
+CONTACT_HANDLE = "@oVZb8MNkQJ4Dgeb"
+CONTACT_URL = "https://x.com/oVZb8MNkQJ4Dgeb"
+
+
+@pytest.mark.parametrize("name", HTML_FILES)
+def test_every_page_shows_the_contact(name):
+    """問い合わせ先は全ページの見えるところに出す。"""
+    source = read(name)
+    assert CONTACT_HANDLE in source
+    assert CONTACT_URL in source
+    assert 'class="sitefoot"' in source
+
+
+@pytest.mark.parametrize("name", HTML_FILES)
+def test_external_link_is_opened_safely(name):
+    """外部リンクは opener を渡さない (タブナビング対策)。"""
+    source = read(name)
+    index = source.find(CONTACT_URL)
+    anchor = source[max(0, index - 200):index + 200]
+    assert 'rel="noopener noreferrer"' in anchor
+
+
+def test_contact_footer_is_readable():
+    """連絡先の文字が本文より極端に小さくならないこと (UD)。"""
+    css = read("css", "app.css")
+    block = css[css.find(".sitefoot {"):]
+    block = block[:block.find("}")]
+    match = re.search(r"font-size:\s*([0-9.]+)rem", block)
+    assert match, ".sitefoot に font-size がありません"
+    assert float(match.group(1)) >= 0.9

@@ -69,6 +69,15 @@ class Settings(BaseSettings):
     allow_room_creation: bool = True
     min_secret_chars: int = 8
 
+    # ---- 管理画面 (運営者だけが使う。全部屋のコードが見える) ----
+    #
+    # ★ 空のときは管理画面を「存在しないもの」として扱う (すべて 404)。
+    #   既定で無効なので、設定しないかぎり誰にも見えない。
+    #   公開 URL は誰でも叩けるため、短い秘密は許さない。
+    admin_secret: str = ""
+    admin_min_secret_chars: int = 16
+    admin_session_ttl_hours: int = 6
+
     # ---- セッション ----
     session_ttl_hours: int = 12
     host_session_ttl_hours: int = 12
@@ -85,6 +94,7 @@ class Settings(BaseSettings):
     rate_host_login_per_minute: int = 15
     rate_submit_per_minute: int = 300
     rate_create_room_per_hour: int = 30
+    rate_admin_login_per_minute: int = 10
     rate_general_per_minute: int = 900
     submission_cooldown_sec: int = 3
 
@@ -120,6 +130,15 @@ class Settings(BaseSettings):
     def cdn_host_list(self) -> list[str]:
         return [h.strip() for h in self.cdn_hosts.split() if h.strip()]
 
+    @property
+    def admin_enabled(self) -> bool:
+        """管理画面を有効にしてよいか。
+
+        短すぎる秘密は「設定されていない」ものとして扱う。中途半端な
+        秘密で全部屋のコードを守るより、無効のままのほうが安全なため。
+        """
+        return len(self.admin_secret) >= self.admin_min_secret_chars
+
 
 @lru_cache
 def get_settings() -> Settings:
@@ -133,6 +152,15 @@ def get_settings() -> Settings:
         warnings.warn(
             "SECRET_KEY 未設定のため一時鍵を生成しました。"
             "再起動するとログイン状態が失われます。",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+    if settings.admin_secret and not settings.admin_enabled:
+        # 起動そのものは止めない。授業中に管理画面の設定ミスで
+        # 全員が使えなくなるより、管理画面を閉じたままにするほうがよい。
+        warnings.warn(
+            f"ADMIN_SECRET が短すぎるため管理画面を無効のままにしました "
+            f"({settings.admin_min_secret_chars} 文字以上にしてください)。",
             RuntimeWarning,
             stacklevel=2,
         )

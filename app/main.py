@@ -11,7 +11,7 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -23,7 +23,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from .config import get_settings
 from .db import init_db
 from .mathjudge.runner import configure_runner, reset_runner
-from .routers import host, rooms, solve
+from .routers import admin, host, rooms, solve
 
 logger = logging.getLogger("exactroom")
 
@@ -110,6 +110,7 @@ def create_app() -> FastAPI:
     app.include_router(rooms.router)
     app.include_router(solve.router)
     app.include_router(host.router)
+    app.include_router(admin.router)
 
     @app.get("/healthz", include_in_schema=False)
     def healthz() -> dict:
@@ -194,6 +195,15 @@ def create_app() -> FastAPI:
         @app.get("/host.html", include_in_schema=False)
         def host_page() -> FileResponse:
             return FileResponse(STATIC_DIR / "host.html")
+
+        @app.get("/admin", include_in_schema=False)
+        @app.get("/admin.html", include_in_schema=False)
+        def admin_page() -> FileResponse:
+            # 管理画面が無効なら、ページ自体も存在しないものとして扱う。
+            # API だけ 404 にしてもページが返ると、存在が知られてしまう。
+            if not get_settings().admin_enabled:
+                raise HTTPException(status_code=404, detail="見つかりません。")
+            return FileResponse(STATIC_DIR / "admin.html")
 
         @app.get("/favicon.ico", include_in_schema=False)
         def favicon() -> FileResponse:

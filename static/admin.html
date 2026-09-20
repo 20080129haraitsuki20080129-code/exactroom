@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex, nofollow">
+<title>管理画面 — ExactRoom</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#2f6df6">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ExactRoom">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap">
+<link rel="stylesheet" href="/static/css/app.css">
+<script src="/static/js/config.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#main">本文へ移動</a>
+<header class="topbar">
+  <a class="brand" href="index.html">ExactRoom</a>
+  <span class="meta">管理画面</span>
+  <span class="spacer"></span>
+  <button type="button" class="small" id="logout" hidden>ログアウト</button>
+  <div class="textsize" role="group" aria-label="文字サイズ">
+    <span class="textsize-label" aria-hidden="true">文字</span>
+    <button type="button" id="textsize-normal" aria-pressed="true" title="文字サイズ 標準">標準</button>
+    <button type="button" id="textsize-large" aria-pressed="false" title="文字サイズ 大">大</button>
+    <button type="button" id="textsize-xlarge" aria-pressed="false" title="文字サイズ 特大">特大</button>
+  </div>
+</header>
+
+<main id="main" tabindex="-1">
+  <div class="error-box" id="global-error" role="alert"></div>
+
+  <section class="card" id="login-card">
+    <h2>管理用パスワード</h2>
+    <form id="login-form">
+      <label for="admin-secret">パスワード</label>
+      <input type="password" id="admin-secret" autocomplete="current-password"
+             maxlength="256" required>
+      <div class="row" style="margin-top:12px">
+        <button type="submit" class="primary" id="login-button">開く</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card" id="rooms-card" hidden>
+    <h2>部屋の一覧</h2>
+    <div class="row" style="margin-bottom:12px">
+      <input type="search" id="filter" class="grow" maxlength="60"
+             placeholder="部屋コード・部屋名でしぼり込む" aria-label="部屋コード・部屋名でしぼり込む">
+      <button type="button" class="small" id="reload">更新</button>
+    </div>
+    <p class="small muted" id="rooms-summary" role="status"></p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>部屋コード</th><th>部屋名</th><th>状態</th>
+            <th>問題</th><th>参加</th><th>提出</th><th>作成日時</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="rooms-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card" id="detail-card" hidden>
+    <h2 id="detail-title"></h2>
+    <p class="small muted" id="detail-meta"></p>
+
+    <h3>問題</h3>
+    <p class="small muted" id="problems-empty" hidden>問題がまだありません。</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>#</th><th>タイトル</th><th>公開</th><th>提出</th><th>作成日時</th></tr>
+        </thead>
+        <tbody id="problems-body"></tbody>
+      </table>
+    </div>
+
+    <h3>参加者</h3>
+    <p class="small muted" id="participants-empty" hidden>まだ誰も参加していません。</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>名前</th><th>提出</th><th>参加日時</th><th>最終アクセス</th></tr>
+        </thead>
+        <tbody id="participants-body"></tbody>
+      </table>
+    </div>
+
+    <p class="small muted">
+      模範解答と答案の中身はこの画面には出ません。出題者の秘密キーも保存されていないため表示できません。
+    </p>
+
+    <div class="row" style="margin-top:12px">
+      <button type="button" class="small" id="close-detail">閉じる</button>
+    </div>
+  </section>
+</main>
+
+<footer class="sitefoot">
+  <p>
+    困ったとき・不具合の連絡は X の
+    <a href="https://x.com/oVZb8MNkQJ4Dgeb" target="_blank" rel="noopener noreferrer">@oVZb8MNkQJ4Dgeb</a>
+    まで DM してください。
+  </p>
+</footer>
+
+<script type="module" src="/static/js/admin.js"></script>
+</body>
+</html>

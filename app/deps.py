@@ -14,6 +14,7 @@ from .security import TokenError, normalize_room_code, verify_token
 
 ROLE_HOST = "host"
 ROLE_SOLVER = "solver"
+ROLE_ADMIN = "admin"
 
 
 def client_ip(request: Request) -> str:
@@ -99,6 +100,27 @@ def require_host(
     if payload.get("code") != room.code:
         raise HTTPException(status_code=401, detail="トークンが部屋と一致しません。")
     return HostContext(room)
+
+
+def require_admin_enabled(settings: Settings = Depends(get_settings)) -> Settings:
+    """管理画面が無効なら「存在しない」ものとして扱う。
+
+    401 ではなく 404 を返すのは、設定していない限り管理画面の存在自体を
+    知られないようにするため。公開 URL は誰でも叩けるので、
+    「ここに管理画面がある」という手がかりを与えない。
+    """
+    if not settings.admin_enabled:
+        raise HTTPException(status_code=404, detail="見つかりません。")
+    return settings
+
+
+def require_admin(
+    authorization: str | None = Header(default=None),
+    settings: Settings = Depends(require_admin_enabled),
+) -> None:
+    payload = _decode(_bearer_token(authorization), settings)
+    if payload.get("role") != ROLE_ADMIN:
+        raise HTTPException(status_code=403, detail="管理者の権限が必要です。")
 
 
 def require_solver(

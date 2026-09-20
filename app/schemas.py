@@ -328,3 +328,63 @@ class SelfTestResponse(BaseModel):
     reason: str
     detail: str
     elapsed_ms: int
+
+
+# --------------------------------------------------------------------------
+# 管理画面 (運営者専用)
+#
+# ★ ここにも模範解答は載せない。運営者は部屋の「持ち主」ではないので、
+#   問題のタイトルと集計までにとどめ、答案の中身は見えないようにする。
+# --------------------------------------------------------------------------
+
+
+class AdminLogin(BaseModel):
+    secret: str = Field(min_length=1, max_length=256)
+
+
+class AdminSession(BaseModel):
+    admin_token: str
+    expires_in: int
+
+
+class AdminRoomSummary(BaseModel):
+    """部屋の一覧。部屋コードを思い出すためのもの。"""
+
+    code: str
+    title: str
+    is_open: bool
+    problem_count: int
+    published_problem_count: int
+    participant_count: int
+    submission_count: int
+    created_at: UtcDatetime
+    last_activity_at: UtcDatetime | None = None
+
+
+class AdminProblemSummary(BaseModel):
+    """問題の見出しだけ。``answer_latex`` は含めない。"""
+
+    order_index: int
+    title: str
+    is_published: bool
+    submission_count: int
+    created_at: UtcDatetime
+
+
+class AdminParticipantSummary(BaseModel):
+    display_name: str
+    submission_count: int
+    created_at: UtcDatetime
+    last_seen_at: UtcDatetime
+
+
+class AdminRoomDetail(BaseModel):
+    """どの部屋か見分けるための情報。答案の中身は含めない。"""
+
+    code: str
+    title: str
+    is_open: bool
+    allow_new_participants: bool
+    created_at: UtcDatetime
+    problems: list[AdminProblemSummary]
+    participants: list[AdminParticipantSummary]
