@@ -14,7 +14,7 @@ import os
 import sys
 import threading
 
-from .equivalence import PENDING, JudgeResult, judge
+from .equivalence import INTERNAL_ERROR, JudgeResult, judge
 
 DEFAULT_TIMEOUT_SEC = 8.0
 
@@ -78,7 +78,8 @@ class JudgePool:
             with self._lock:
                 self._reset_pool()
             return JudgeResult(
-                verdict=PENDING,
+                status="timeout",
+                verdict=None,
                 reason="timeout",
                 detail=f"判定が {timeout:.0f} 秒以内に終わりませんでした。",
                 student_message="判定に時間がかかりすぎました (判定保留)。",
@@ -94,7 +95,8 @@ class JudgePool:
                     model_latex, submitted_latex, options, timeout, _retry=False
                 )
             return JudgeResult(
-                verdict=PENDING,
+                status=INTERNAL_ERROR,
+                verdict=None,
                 reason="worker_error",
                 detail=f"ワーカープロセスが異常終了しました: {type(exc).__name__}",
                 student_message="判定に失敗しました (判定保留)。",

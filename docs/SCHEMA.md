@@ -84,7 +84,8 @@ rooms 1 ──< problems 1 ──< submissions >── 1 participants
 | `problem_id` | INTEGER | FK → `problems.id` CASCADE, INDEX | |
 | `participant_id` | INTEGER | FK → `participants.id` CASCADE, INDEX | |
 | `answer_latex` | TEXT | NOT NULL | 提出された答案。本人と出題者が見られる |
-| `verdict` | VARCHAR(8) | INDEX | `AC` / `WA` / `PENDING` |
+| `status` | VARCHAR(24) | INDEX | `judged` / `undecided` / `input_error` / `problem_error` / `timeout` / `internal_error` |
+| `verdict` | VARCHAR(8) | INDEX | `AC` / `WA`。既存DBとの互換用に未確定状態は内部保存時 `PENDING`、APIでは `null` |
 | `reason` | VARCHAR(48) | `''` | 判定根拠コード(**出題者のみ**) |
 | `detail` | TEXT | `''` | 判定の詳細(**出題者のみ**) |
 | `elapsed_ms` | INTEGER | `0` | 判定にかかった時間 |
@@ -104,7 +105,7 @@ rooms 1 ──< problems 1 ──< submissions >── 1 participants
 | `collection_equal` / `collection_differs` / `collection_undecided` | 集合・複数解の比較 |
 | `kind_mismatch` | 解答の種類が違う(式 vs 関係式 など) |
 | `cardinality` | 要素数が違う |
-| `submission_parse_error` | 提出答案を TeX として解釈できない |
+| `submission_parse_error` | 提出答案を TeX として解釈できない (`input_error`) |
 | `model_parse_error` | 模範解答を解釈できない(出題者が直す必要あり) |
 | `timeout` | 判定がタイムアウトした |
 | `worker_error` / `internal_error` | 判定プロセスの異常 |
@@ -177,6 +178,7 @@ CREATE TABLE submissions (
   problem_id     INTEGER NOT NULL REFERENCES problems(id) ON DELETE CASCADE,
   participant_id INTEGER NOT NULL REFERENCES participants(id) ON DELETE CASCADE,
   answer_latex   TEXT NOT NULL,
+  status         VARCHAR(24) NOT NULL DEFAULT 'judged',
   verdict        VARCHAR(8) NOT NULL,
   reason         VARCHAR(48) NOT NULL DEFAULT '',
   detail         TEXT NOT NULL DEFAULT '',

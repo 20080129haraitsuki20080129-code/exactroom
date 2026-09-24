@@ -251,7 +251,8 @@ class SubmissionResult(BaseModel):
 
     submission_id: int
     problem_id: int
-    verdict: str
+    status: str
+    verdict: str | None = None
     message: str
     created_at: UtcDatetime
     remaining_submissions: int | None = None
@@ -263,7 +264,8 @@ class MySubmission(BaseModel):
     id: int
     problem_id: int
     answer_latex: str
-    verdict: str
+    status: str = "judged"
+    verdict: str | None = None
     created_at: UtcDatetime
 
 
@@ -276,7 +278,8 @@ class HostSubmission(BaseModel):
     participant_id: int
     participant_name: str
     answer_latex: str
-    verdict: str
+    status: str = "judged"
+    verdict: str | None = None
     reason: str
     detail: str
     elapsed_ms: int
@@ -324,7 +327,8 @@ class SelfTestRequest(BaseModel):
 
 
 class SelfTestResponse(BaseModel):
-    verdict: str
+    status: str
+    verdict: str | None = None
     reason: str
     detail: str
     elapsed_ms: int

@@ -157,13 +157,32 @@ export const VERDICT = {
   PENDING: { mark: "△", short: "判定できず", long: "判定できませんでした" },
 };
 
-export function verdictText(verdict, { long = false } = {}) {
+const STATUS_LABEL = {
+  undecided: { mark: "△", short: "判定保留", long: "判定保留です" },
+  input_error: { mark: "!", short: "入力エラー", long: "入力を確認してください" },
+  problem_error: { mark: "!", short: "採点できず", long: "この問題を採点できません" },
+  timeout: { mark: "…", short: "判定タイムアウト", long: "判定が時間内に完了しませんでした" },
+  internal_error: { mark: "!", short: "判定エラー", long: "判定処理に失敗しました" },
+};
+
+export function verdictText(verdict, { long = false, status = "" } = {}) {
+  if (status && status !== "judged") {
+    const info = STATUS_LABEL[status] || STATUS_LABEL.undecided;
+    return `${info.mark} ${long ? info.long : info.short}`;
+  }
   const info = VERDICT[verdict] || VERDICT.PENDING;
   return `${info.mark} ${long ? info.long : info.short}`;
 }
 
 /** 判定バッジ (記号 + ことば) を作る。 */
-export function verdictBadge(verdict) {
+export function verdictBadge(verdict, status = "") {
+  if (status && status !== "judged") {
+    const info = STATUS_LABEL[status] || STATUS_LABEL.undecided;
+    const span = el("span", { className: "verdict PENDING" });
+    span.appendChild(el("span", { attrs: { "aria-hidden": "true" }, text: info.mark }));
+    span.appendChild(el("span", { text: info.short }));
+    return span;
+  }
   const info = VERDICT[verdict] || VERDICT.PENDING;
   const span = el("span", { className: `verdict ${verdict}` });
   span.appendChild(el("span", { attrs: { "aria-hidden": "true" }, text: info.mark }));

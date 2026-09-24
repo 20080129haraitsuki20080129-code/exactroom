@@ -312,7 +312,8 @@ def test_pathological_inputs_are_fast(payload):
     result = judge(r"\frac{1}{2}", payload)
     elapsed = time.monotonic() - started
     assert elapsed < 5.0, f"{payload[:20]} に {elapsed:.1f} 秒かかった"
-    assert result.verdict in ("AC", "WA", "PENDING")
+    assert result.status in ("judged", "undecided", "input_error", "problem_error", "timeout", "internal_error")
+    assert (result.status == "judged") == (result.verdict in ("AC", "WA"))
 
 
 def test_judge_never_raises():
@@ -320,7 +321,8 @@ def test_judge_never_raises():
 
     for payload in ["", "   ", "\x00", "\\", "}{", "\\left(", "|", "\\frac{}{}"]:
         result = judge(r"1", payload)
-        assert result.verdict in ("AC", "WA", "PENDING")
+        assert result.status in ("judged", "undecided", "input_error", "problem_error", "timeout", "internal_error")
+        assert (result.status == "judged") == (result.verdict in ("AC", "WA"))
 
 
 def test_non_ascii_token_is_rejected_not_crashed():

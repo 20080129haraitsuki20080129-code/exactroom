@@ -264,9 +264,12 @@ $("selftest-run").addEventListener("click", async () => {
       host.token
     );
     area.textContent = "";
-    const banner = el("div", { className: `banner ${result.verdict}` });
+    const banner = el("div", { className: `banner ${result.verdict || "PENDING"}` });
     banner.appendChild(
-      el("div", { className: "headline", text: verdictText(result.verdict, { long: true }) })
+      el("div", {
+        className: "headline",
+        text: verdictText(result.verdict, { long: true, status: result.status }),
+      })
     );
     banner.appendChild(el("div", { className: "small", text: `根拠: ${result.reason} (${result.elapsed_ms} ms)` }));
     area.appendChild(banner);
@@ -352,12 +355,18 @@ function renderSubmissions() {
   body.textContent = "";
   $("load-older").disabled = !hasOlderSubmissions;
 
-  const counts = { AC: 0, WA: 0, PENDING: 0 };
-  for (const row of rows) counts[row.verdict] = (counts[row.verdict] || 0) + 1;
+  const counts = { AC: 0, WA: 0, unresolved: 0 };
+  for (const row of rows) {
+    if (row.status === "judged" && (row.verdict === "AC" || row.verdict === "WA")) {
+      counts[row.verdict] += 1;
+    } else {
+      counts.unresolved += 1;
+    }
+  }
   setText(
     $("submission-summary"),
     `${rows.length} 件${hasOlderSubmissions ? " (さらに古い提出あり)" : ""} — ` +
-      `AC ${counts.AC} / WA ${counts.WA} / 判定保留 ${counts.PENDING}`
+      `AC ${counts.AC} / WA ${counts.WA} / 未確定・処理エラー ${counts.unresolved}`
   );
 
   if (!rows.length) {
@@ -380,7 +389,7 @@ function renderSubmissions() {
         el("td", { className: "small", text: row.participant_name }),
         el("td", { className: "small", text: row.problem_title || `#${row.problem_id}` }),
         el("td", { className: "tex small", text: row.answer_latex }),
-        el("td", {}, [verdictBadge(row.verdict)]),
+        el("td", {}, [verdictBadge(row.verdict, row.status)]),
         el("td", { className: "small muted", text: row.reason }),
         el("td", { className: "small muted nowrap", text: `${row.elapsed_ms} ms` }),
       ])
