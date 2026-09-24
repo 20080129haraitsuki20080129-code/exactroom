@@ -1,0 +1,139 @@
+/* Shared, low-noise layout for the room host and service admin screens. */
+.dashboard-page {
+  --dash-line: var(--border-soft);
+  --dash-surface: var(--surface);
+}
+
+.dashboard-page main { max-width: 1180px; }
+.dashboard-page .topbar { min-height: 64px; gap: 10px; }
+.dashboard-page .topbar .meta { min-width: 0; overflow-wrap: anywhere; }
+.dashboard-page .card {
+  border: 1px solid var(--dash-line);
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+.dashboard-page .room-access {
+  display: grid;
+  grid-template-columns: minmax(110px, .35fr) minmax(0, 1fr);
+  gap: 8px 22px;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 14px 18px;
+}
+
+.room-access .small.muted { margin-bottom: 3px; }
+.room-access .code-chip { font-size: 1rem; font-weight: 700; letter-spacing: .04em; }
+.room-access input { min-width: 0; min-height: 42px; }
+
+.dashboard-tabs {
+  gap: 4px;
+  width: max-content;
+  max-width: 100%;
+  margin: 0 0 18px;
+  padding: 3px;
+  border: 1px solid var(--dash-line);
+  border-radius: 10px;
+  background: var(--surface-2);
+  overflow-x: auto;
+}
+
+.dashboard-tabs button,
+.dashboard-tabs button[aria-selected="true"] {
+  min-height: 42px;
+  padding: 7px 15px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.dashboard-tabs button[aria-selected="true"] {
+  border-color: var(--dash-line);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgb(16 24 40 / 5%);
+}
+
+.host-page .grid-2 {
+  grid-template-columns: minmax(210px, .7fr) minmax(0, 1.3fr);
+  gap: 16px;
+}
+
+.host-page .grid-2 > .card { min-width: 0; padding: 20px; }
+.host-page .grid-2 > .card:first-child { position: sticky; top: 82px; }
+.host-page #problem-form h3 { margin-top: 18px; }
+.host-page #problem-form > label { margin-top: 13px; }
+.host-page #problem-form textarea { min-height: 90px; }
+.host-page #problem-form .math-preview:empty { display: none; }
+.host-page #problem-form .math-preview:not(:empty) { margin-top: 8px; }
+
+.judge-settings {
+  margin-top: 18px;
+  border-top: 1px solid var(--dash-line);
+  border-bottom: 1px solid var(--dash-line);
+}
+
+.judge-settings > summary {
+  display: flex;
+  min-height: 50px;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.judge-settings > summary span { color: var(--text-muted); font-size: .78rem; font-weight: 400; }
+.judge-settings-content { padding: 0 0 14px; }
+.judge-settings-content h3 { margin-top: 4px !important; }
+
+.dashboard-page .table-wrap {
+  max-width: 100%;
+  border: 1px solid var(--dash-line);
+  border-radius: 9px;
+  background: var(--surface);
+}
+
+.dashboard-page table { min-width: 680px; }
+.admin-page #login-card { width: min(100%, 520px); margin: 28px auto; }
+.admin-page #login-card h1 { margin: 0 0 8px; font-size: clamp(1.5rem, 3vw, 1.9rem); line-height: 1.35; }
+.admin-page #login-card > p:not(.dashboard-eyebrow) { margin: 0 0 18px; }
+.dashboard-eyebrow { margin: 0 0 5px; color: var(--accent); font-size: .78rem; font-weight: 700; }
+.admin-content-card { min-width: 0; }
+.admin-content-card h2 { margin-bottom: 12px; }
+.admin-page #rooms-summary { min-height: 1.5em; }
+.admin-page #detail-card h3 { margin-top: 24px; padding-bottom: 7px; border-bottom: 1px solid var(--dash-line); }
+
+.dashboard-page [role="tabpanel"]:focus { outline: none; }
+.dashboard-page [role="tabpanel"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+@media (max-width: 900px) {
+  .host-page .grid-2 { grid-template-columns: minmax(0, 1fr); }
+  .host-page .grid-2 > .card:first-child { position: static; }
+  .host-page .grid-2 > .card:first-child .row { justify-content: flex-start; }
+}
+
+@media (max-width: 600px) {
+  .dashboard-page main { padding: 16px 12px 40px; }
+  .dashboard-page .topbar { padding: 8px 12px; }
+  .dashboard-page .topbar .textsize-label { display: none; }
+  .dashboard-page .room-access { grid-template-columns: minmax(0, 1fr); gap: 9px; padding: 13px; }
+  .dashboard-tabs { width: 100%; justify-content: space-between; }
+  .dashboard-tabs button { flex: 1 0 auto; padding-inline: 10px; font-size: .82rem; }
+  .host-page .grid-2 > .card { padding: 16px; }
+  .host-page #problem-list .item { padding-block: 10px; }
+  .dashboard-page .row { gap: 8px; }
+  .dashboard-page .row > .grow { flex-basis: 100%; }
+  .admin-page #login-card { margin: 16px auto; }
+  .admin-page #rooms-card .row { align-items: stretch; }
+  .dashboard-page .sitefoot { padding-inline: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-page *, .dashboard-page *::before, .dashboard-page *::after {
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
+}
+
