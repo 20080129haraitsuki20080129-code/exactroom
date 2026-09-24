@@ -201,3 +201,14 @@
 @media (prefers-reduced-motion: reduce) {
   .solve-page *, .solve-page *::before, .solve-page *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+.input-mode-switch { display: inline-flex; gap: 2px; width: max-content; max-width: 100%; margin: 0 0 12px; padding: 3px; border: 1px solid var(--solve-line); border-radius: 8px; background: var(--solve-sidebar); }
+.input-mode-switch .mode-button { min-height: 38px; padding: 6px 12px; border: 0; border-radius: 6px; background: transparent; color: var(--solve-muted); cursor: pointer; font-size: 13px; }
+.input-mode-switch .mode-button[aria-pressed="true"] { background: var(--solve-surface); color: var(--solve-text); font-weight: 600; }
+.input-pane[hidden] { display: none !important; }
+.input-pane textarea { resize: vertical; }
+.input-pane .small { margin: 8px 2px 2px; color: var(--solve-muted); font-size: 12px; }
+.tex-fallback-note { margin: 10px 0 0; color: var(--solve-muted); font-size: 13px; line-height: 1.6; }
+@media (max-width: 767px) {
+  .input-mode-switch .mode-button { min-height: 44px; }
+}
