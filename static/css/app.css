@@ -642,3 +642,54 @@ td button { white-space: nowrap; }
     scroll-behavior: auto !important;
   }
 }
+
+
+/* Modern, focused surface treatment */
+:root {
+  --bg: #f5f7fa;
+  --surface: #ffffff;
+  --surface-2: #ffffff;
+  --border: #c4ccd8;
+  --border-soft: #e2e7ef;
+  --text: #1d2738;
+  --text-muted: #526176;
+  --accent: #3158c9;
+  --accent-text: #ffffff;
+  --accent-soft: #f1f4fc;
+  --radius: 12px;
+  --shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 8px 24px rgba(16, 24, 40, .04);
+}
+
+body { line-height: 1.75; letter-spacing: .012em; }
+.topbar { padding: 8px max(20px, calc((100vw - 1120px) / 2)); border-bottom: 1px solid var(--border-soft); box-shadow: none; }
+.topbar .brand { font-size: 1.05rem; letter-spacing: -.025em; }
+main { padding-top: 28px; }
+.grid-2 { gap: 18px; }
+.card { border: 1px solid var(--border-soft); border-radius: 14px; padding: 24px; margin-bottom: 16px; box-shadow: var(--shadow); }
+.card h2 { margin-bottom: 16px; letter-spacing: -.02em; }
+.textsize button { border-width: 1px; border-radius: 8px; }
+input[type="text"], input[type="password"], input[type="number"], textarea, select { background: var(--surface); border: 1px solid var(--border); border-radius: 9px; transition: border-color .15s ease, box-shadow .15s ease; }
+input:hover, textarea:hover, select:hover { border-color: #8d9bb0; }
+input:focus-visible, textarea:focus-visible, select:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
+button { border-width: 1px; border-radius: 9px; transition: background-color .15s ease, border-color .15s ease; }
+button.primary { box-shadow: 0 2px 5px color-mix(in srgb, var(--accent) 18%, transparent); }
+button.primary:hover:not(:disabled) { filter: brightness(1.04); }
+.role-choice { gap: 12px; margin-bottom: 20px; }
+.role-card { min-height: 84px; padding: 16px 19px; border: 1px solid var(--border-soft); border-radius: 11px; box-shadow: none; }
+.role-card .role-title { font-size: 1.12rem; letter-spacing: -.015em; }
+.role-card[aria-pressed="true"] { border-color: var(--accent); background: var(--surface); box-shadow: inset 3px 0 var(--accent); }
+.role-card[aria-pressed="true"] .role-title::before { content: "✓ "; }
+.tabs { border-bottom-width: 1px; }
+.tabs button { border-bottom-width: 3px; }
+.verdict, .banner, .error-box, .ok-box { border-width: 1px; }
+.list li { border-bottom-width: 1px; }
+.list button.item { border-left-width: 3px; }
+th, td { border-bottom-width: 1px; }
+math-field { background: var(--surface); border-width: 1px; border-radius: 10px; }
+.math-preview { border-width: 1px; border-radius: 10px; }
+.sitefoot { border-top-color: var(--border-soft); }
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #12161d; --surface: #1b222b; --surface-2: #202833; --border: #687587; --border-soft: #35404d; --text: #edf1f7; --text-muted: #bac3d0; --accent: #8eacff; --accent-text: #10182a; --accent-soft: #212e49; --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .22); }
+  input[type="text"], input[type="password"], input[type="number"], textarea, select, math-field { background: var(--surface-2); }
+  .role-card[aria-pressed="true"] { background: var(--surface-2); }
+}
