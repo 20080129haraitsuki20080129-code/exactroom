@@ -16,6 +16,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap">
 <link rel="stylesheet" href="/static/css/app.css">
+<link rel="stylesheet" href="/static/css/room-create.css">
 <script src="/static/js/config.js"></script>
 </head>
 <body>
@@ -66,53 +67,74 @@
     </div>
   </section>
 
-  <section id="panel-host" hidden>
-    <div class="card">
-      <h2>出題者としてログイン</h2>
-      <form id="host-form" autocomplete="off">
-        <label for="host-code">部屋コード</label>
-        <input type="text" id="host-code" class="mono" inputmode="latin" autocapitalize="characters"
-               maxlength="16" placeholder="例: K7M2QD" required>
-        <label for="host-secret">秘密キー</label>
-        <input type="password" id="host-secret" maxlength="128" required>
-        <div class="row" style="margin-top:16px">
-          <button type="submit" class="primary">ログイン</button>
+  <section id="panel-host" class="host-panel" hidden>
+    <header class="host-panel-heading">
+      <p class="host-eyebrow">出題者向け</p>
+      <h1>授業や演習の部屋を作成</h1>
+      <p>部屋を作成したら、問題を登録して参加リンクを共有できます。</p>
+    </header>
+
+    <div class="card create-room-card">
+      <div class="room-card-heading">
+        <span class="room-step" aria-hidden="true">01</span>
+        <div>
+          <h2>新しい部屋を作る</h2>
+          <p>部屋コードは自動発行にも、任意のコードにもできます。</p>
         </div>
-        <div class="error-box" id="host-error" role="alert"></div>
-      </form>
-    </div>
-
-    <div class="card">
-      <h2>新しい部屋を作る</h2>
+      </div>
       <form id="create-form" autocomplete="off">
-        <label for="create-title">部屋の名前</label>
-        <input type="text" id="create-title" maxlength="120" placeholder="例: 数学II 三角関数 小テスト">
-        <label for="create-code">部屋コード (空欄なら自動で決まります)</label>
-        <input type="text" id="create-code" class="mono" inputmode="latin"
-               autocapitalize="characters" maxlength="16" placeholder="例: 1234 / SUGAKU2">
-        <p class="hint">英数字 3 文字以上。同じコードを知っている人が同じ部屋に入ります。
-          短く推測しやすいコードにすると、無関係な人に入られることがあります。</p>
+        <label for="create-title">部屋の名前 <span class="optional-label">任意</span></label>
+        <input type="text" id="create-title" maxlength="120" placeholder="例: 数学II・三角関数の演習">
+        <p class="hint">参加者にも表示されます。授業名や演習名を付けると見分けやすくなります。</p>
 
-        <label for="create-secret">秘密キー (8 文字以上)</label>
-        <input type="password" id="create-secret" minlength="8" maxlength="128" required>
-        <p class="hint">出題者はこのキーで入ります。忘れると部屋を管理できなくなります。</p>
-        <div id="create-token-block" hidden>
+        <label for="create-code">部屋コード <span class="optional-label">任意</span></label>
+        <input type="text" id="create-code" class="mono" inputmode="latin"
+               autocapitalize="characters" maxlength="16" placeholder="空欄なら自動で発行">
+        <p class="hint">指定する場合は英数字 3 文字以上。参加者はこのコード、または作成後の参加リンクから入室します。</p>
+
+        <div class="room-secret-field">
+          <label for="create-secret">出題者用の秘密キー</label>
+          <input type="password" id="create-secret" minlength="8" maxlength="128"
+                 autocomplete="new-password" placeholder="8 文字以上のキー" required>
+          <p class="hint">管理画面へログインするときに使います。安全な場所に控えてください。忘れると部屋を管理できなくなります。</p>
+        </div>
+
+        <div id="create-token-block" class="room-token-field" hidden>
           <label for="create-token">部屋作成の合言葉 <span id="create-token-required"></span></label>
           <input type="text" id="create-token" maxlength="128"
                  autocomplete="off" placeholder="管理者から伝えられた合言葉">
           <p class="hint" id="create-token-hint"></p>
         </div>
-        <div class="row" style="margin-top:16px">
-          <button type="submit" class="primary">部屋を作る</button>
+
+        <div class="room-create-actions">
+          <button type="submit" class="primary create-room-submit">部屋を作成 <span aria-hidden="true">→</span></button>
+          <p>作成後は、問題の登録や参加者の確認ができます。</p>
         </div>
         <div class="error-box" id="create-error" role="alert"></div>
         <div class="error-box" id="create-disabled" role="status"></div>
         <div class="ok-box" id="create-ok" role="status"></div>
       </form>
     </div>
+
+    <aside class="card host-login-card">
+      <div class="login-icon" aria-hidden="true">↗</div>
+      <h2>作成済みの部屋を管理</h2>
+      <p>すでに部屋を作成済みの場合はこちらから入れます。</p>
+      <form id="host-form" autocomplete="off">
+        <label for="host-code">部屋コード</label>
+        <input type="text" id="host-code" class="mono" inputmode="latin" autocapitalize="characters"
+               maxlength="16" placeholder="例: K7M2QD" required>
+        <label for="host-secret">秘密キー</label>
+        <input type="password" id="host-secret" maxlength="128" autocomplete="current-password"
+               placeholder="作成時に設定したキー" required>
+        <div class="row" style="margin-top:16px">
+          <button type="submit" class="host-login-submit">管理画面へログイン</button>
+        </div>
+        <div class="error-box" id="host-error" role="alert"></div>
+      </form>
+    </aside>
   </section>
 </main>
-
 
 <footer class="sitefoot">
   <p>
