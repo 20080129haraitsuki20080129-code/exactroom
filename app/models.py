@@ -162,7 +162,7 @@ class Submission(Base):
     )
     #: 提出された答案 (TeX)。提出者本人と出題者が見られる。
     answer_latex: Mapped[str] = mapped_column(Text)
-    #: "AC" | "WA" | "PENDING"
+    #: "AC" | "WA"; the non-null legacy column uses an internal placeholder for errors.
     verdict: Mapped[str] = mapped_column(String(8), index=True)
     #: Request lifecycle status, independent from mathematical verdict.
     status: Mapped[str] = mapped_column(String(24), default="judged", index=True)

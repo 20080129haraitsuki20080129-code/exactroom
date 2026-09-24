@@ -56,7 +56,7 @@ def _calls(tree: ast.AST):
 
 #: 組み込みとして呼んではいけないもの
 FORBIDDEN_BARE = {"eval", "exec", "compile", "__import__", "execfile"}
-#: 属性呼び出しとして呼んではいけないもの (re.compile は安全なので含めない)
+#: 数値fallback専用モジュール以外で属性呼び出しを禁止する
 FORBIDDEN_ATTR = {"eval", "exec", "evalf"}
 
 #: 判定コードで呼んではいけない数値評価系
@@ -80,7 +80,9 @@ def test_no_eval_or_exec_anywhere_in_app():
     for path in _python_sources(ROOT / "app"):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for kind, name, lineno in _calls(tree):
-            bad = FORBIDDEN_BARE if kind == "bare" else FORBIDDEN_ATTR
+            bad = FORBIDDEN_BARE if kind == "bare" else (
+                {"eval", "exec"} if path.name == "numerical.py" else FORBIDDEN_ATTR
+            )
             assert name not in bad, f"{path.name}:{lineno} で {name}() を呼んでいる"
         # 名前としての参照 (getattr 経由の迂回) も禁止
         for node in ast.walk(tree):
@@ -89,7 +91,7 @@ def test_no_eval_or_exec_anywhere_in_app():
 
 
 def test_no_numeric_evaluation_in_decision_code():
-    """判定コードで数値近似 (evalf / N / float / complex) を呼ばない。"""
+    """Exact judge / parser で数値近似を使わない。fallback は別テストで監査する。"""
     for name in DECISION_FILES:
         path = JUDGE_DIR / name
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
@@ -98,6 +100,21 @@ def test_no_numeric_evaluation_in_decision_code():
             assert called not in bad, (
                 f"{name}:{lineno} で数値評価関数 {called}() を呼んでいる"
             )
+
+
+def test_numeric_evaluation_is_confined_to_fallback():
+    """evalf は高精度fallback内だけに許可し、危険なeval系は引き続き禁止する。"""
+    path = JUDGE_DIR / "numerical.py"
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    for kind, called, lineno in _calls(tree):
+        if kind == "bare":
+            assert called not in NUMERIC_BARE, f"numerical.py:{lineno} {called}()"
+        else:
+            assert called not in (NUMERIC_ATTR - {"evalf"}) | {"eval", "exec"}, (
+                f"numerical.py:{lineno} {called}()"
+            )
+            if called == "evalf":
+                continue
 
 
 def test_decision_code_does_not_import_sympy_parsing():

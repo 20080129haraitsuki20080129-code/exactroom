@@ -1,10 +1,10 @@
-"""模範解答と提出答案の数学的同値性を厳密に判定する。
+"""模範解答と提出答案を exact-first / numerical-fingerprint で判定する。
 
-判定は 3 値:
+数学Verdictは AC / WA の2値。比較内部では次の状態を使う:
 
-* ``AC``      … 厳密に同値であることを **証明できた**
-* ``WA``      … 厳密に同値でないことを **証明できた**
-* ``PENDING`` … どちらも証明できなかった (判定保留)
+* ``EQUIVALENT`` … exact proof または規定数値fingerprintで一致
+* ``NOT_EQUIVALENT`` … exact counterexample または規定数値fingerprintで不一致
+* ``UNDECIDED`` … 数値fallbackへ進む前の内部状態
 
 ``reason`` には判定の根拠コードが入る。提出者に返してよいのは
 ``verdict`` と、提出者自身の入力に関する ``student_message`` だけであり、
@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import time
 from dataclasses import dataclass, field
 
@@ -21,11 +22,14 @@ from sympy import S
 
 from .errors import MathError
 from .exactzero import NONZERO, ZERO, decide_zero, prove_equal
+from .numerical import numerical_fingerprint
 from .parser import ParsedAnswer, ParseOptions, parse_latex_answer
 
 AC = "AC"
 WA = "WA"
-PENDING = "PENDING"
+UNKNOWN = "unknown"
+# Backward-compatible symbol only; judge() never returns this internal state.
+PENDING = UNKNOWN
 
 # A mathematical comparison is independent from the request/worker lifecycle.
 EQUIVALENT = "equivalent"
@@ -129,14 +133,14 @@ def _compare_relations(a, b, domain_conditions=()) -> str:
                     return AC
                 if simplified.is_Rational and simplified < 0:
                     return WA
-                return PENDING
+                return UNKNOWN
 
     # 反例探索: 真偽が食い違う厳密な点が見つかれば非同値が確定する
     if _relation_witness(fam_a, da, fam_b, db, domain_conditions):
         return WA
     if fam_a == fam_b and prove_equal(da, db) == ZERO:
         return AC
-    return PENDING
+    return UNKNOWN
 
 
 def _truth_at(family: str, value):
@@ -282,10 +286,10 @@ def _compare_sets(a: sp.Set, b: sp.Set, domain_conditions=()) -> str:
             return AC
         return WA
     if not (isinstance(a, sp.FiniteSet) and isinstance(b, sp.FiniteSet)):
-        return PENDING
+        return UNKNOWN
     ea, eb = list(a.args), list(b.args)
     if len(ea) > MAX_ELEMENTS or len(eb) > MAX_ELEMENTS:
-        return PENDING
+        return UNKNOWN
     return _compare_collections(
         ea, eb, ordered=False, domain_conditions=domain_conditions
     )
@@ -305,12 +309,12 @@ def _compare_collections(
             return AC
         if any(s == WA for s in statuses):
             return WA
-        return PENDING
+        return UNKNOWN
 
     ea = list(ea)
     eb = list(eb)
     if len(ea) > MAX_ELEMENTS or len(eb) > MAX_ELEMENTS:
-        return PENDING
+        return UNKNOWN
 
     matrix = [
         [_compare_items(x, y, domain_conditions) for y in eb] for x in ea
@@ -324,8 +328,8 @@ def _compare_collections(
         column = [matrix[r][col] for r in range(len(ea))]
         if column and all(s == WA for s in column):
             return WA
-    if any(PENDING in row for row in matrix):
-        return PENDING
+    if any(UNKNOWN in row for row in matrix):
+        return UNKNOWN
 
     # ここまで来れば全ペアの等価判定が確定している。
     # 重複を潰したうえで集合として一致するかを見る。
@@ -379,7 +383,7 @@ def _compare_items(a, b, domain_conditions=()) -> str:
         return AC
     if status == NONZERO:
         return WA
-    return PENDING
+    return UNKNOWN
 
 
 # --------------------------------------------------------------------------
@@ -396,7 +400,7 @@ def compare_parsed(
 
     Returns:
         ``(equivalence_state, reason)``. This is deliberately separate from
-        request status and the legacy AC/WA/PENDING verdict field.
+        request status and the legacy AC/WA/UNKNOWN verdict field.
     """
     mk, sk = model.kind, submitted.kind
     # 集合とカンマ区切りリストは同じ「複数解」とみなす
@@ -489,6 +493,11 @@ def judge(
     started = time.monotonic()
     opts = dict(options or {})
     ordered_list = bool(opts.pop("ordered_list", False))
+    sampling_seed = opts.pop("sampling_seed", None)
+    if not isinstance(sampling_seed, bytes) or len(sampling_seed) < 16:
+        sampling_seed = hashlib.sha256(
+            (model_latex + "\0" + submitted_latex).encode("utf-8")
+        ).digest()
     parse_opts = ParseOptions.from_dict(opts)
 
     def finish(result: JudgeResult) -> JudgeResult:
@@ -558,19 +567,61 @@ def judge(
             )
         )
 
+    numeric_meta = {}
+    has_variables = any(
+        bool(getattr(item, "free_symbols", set()))
+        for parsed in (model, submitted)
+        for item in parsed.items
+    )
+    # The documented 10,000-digit policy treats a smaller constant difference
+    # as equal, even when exact arithmetic can exhibit that nonzero difference.
+    # Variable expressions retain exact WA evidence before fingerprinting.
+    numeric_fallback = state == UNDECIDED or (
+        state == NOT_EQUIVALENT and not has_variables
+    )
+    if numeric_fallback:
+        evidence = numerical_fingerprint(
+            model,
+            submitted,
+            seed=sampling_seed,
+            ordered_list=ordered_list,
+        )
+        if evidence is None:
+            return finish(
+                JudgeResult(
+                    status=INTERNAL_ERROR,
+                    verdict=None,
+                    reason="numeric_fingerprint_failed",
+                    detail="No sufficient valid samples could be evaluated.",
+                    student_message="採点処理に失敗しました。時間をおいて再送してください。",
+                    meta={"model_kind": model.kind, "submitted_kind": submitted.kind},
+                )
+            )
+        if state == UNDECIDED or evidence.equivalent:
+            state = EQUIVALENT if evidence.equivalent else NOT_EQUIVALENT
+            reason = evidence.reason
+            numeric_meta = {
+                "judge_method": "numeric_10000d",
+                "judge_precision": evidence.precision,
+                "sample_count": evidence.valid_samples,
+            }
+
     verdict = {EQUIVALENT: AC, NOT_EQUIVALENT: WA}.get(state)
     messages = {
-        AC: "厳密に同値であることを確認しました。",
-        WA: "厳密に同値でないことを確認しました。",
-        None: "同値かどうかを厳密に判定できませんでした (判定保留)。",
+        AC: "あなたの答えは、採点基準上、模範解答と同じ内容です。",
+        WA: "あなたの答えは、模範解答とは違う内容です。",
+        None: "採点処理に失敗しました。時間をおいて再送してください。",
     }
     return finish(
         JudgeResult(
             status=JUDGED if verdict is not None else UNDECIDED,
             verdict=verdict,
             reason=reason,
-            detail=f"kind={model.kind}/{submitted.kind} reason={reason}",
+            detail=(
+                f"kind={model.kind}/{submitted.kind} reason={reason} "
+                f"method={numeric_meta.get('judge_method', 'exact_symbolic')}"
+            ),
             student_message=messages[verdict],
-            meta={"model_kind": model.kind, "submitted_kind": submitted.kind},
+            meta={"model_kind": model.kind, "submitted_kind": submitted.kind, **numeric_meta},
         )
     )

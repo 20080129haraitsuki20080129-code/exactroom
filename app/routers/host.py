@@ -7,7 +7,10 @@
 from __future__ import annotations
 
 import csv
+import hashlib
+import hmac
 import io
+import secrets
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -316,6 +319,18 @@ def self_test(
         raise HTTPException(status_code=404, detail="問題が見つかりません。")
     options = dict(problem.parse_options or {})
     options["ordered_list"] = bool(problem.ordered_list)
+    options["sampling_seed"] = hmac.new(
+        settings.secret_key.encode("utf-8"),
+        b"\0".join(
+            (
+                b"exactroom-host-self-test-v1",
+                str(problem.id).encode("ascii"),
+                hashlib.sha256(payload.candidate_latex.encode("utf-8")).digest(),
+                secrets.token_bytes(32),
+            )
+        ),
+        hashlib.sha256,
+    ).digest()
     result = judge_isolated(
         problem.answer_latex,
         payload.candidate_latex,
@@ -323,8 +338,8 @@ def self_test(
         timeout=settings.judge_timeout_sec,
     )
     return SelfTestResponse(
-        status=result.get("status", "undecided"),
-        verdict=result.get("verdict", "PENDING"),
+        status=result.get("status", "internal_error"),
+        verdict=result.get("verdict"),
         reason=result.get("reason", ""),
         detail=result.get("detail", ""),
         elapsed_ms=int(result.get("elapsed_ms", 0)),
@@ -365,7 +380,7 @@ def list_submissions(
         stmt = stmt.where(Submission.problem_id == problem_id)
     if participant_id:
         stmt = stmt.where(Submission.participant_id == participant_id)
-    if verdict in ("AC", "WA", "PENDING"):
+    if verdict in ("AC", "WA"):
         stmt = stmt.where(Submission.verdict == verdict)
     if since_id:
         # 新しい順 + LIMIT だと、間に大量に入ったとき中間が抜け落ちる

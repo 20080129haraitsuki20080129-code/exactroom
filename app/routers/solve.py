@@ -2,12 +2,15 @@
 
 ★ このファイルのレスポンスに模範解答が漏れないことが最重要 ★
 * 問題一覧は ``ProblemPublic`` のみを返す (answer_latex を持たない)。
-* 判定結果は 3 値 + 自分の入力に関するメッセージのみ。
+* 数学Verdictは AC / WA のみ。処理エラーは別statusで返す。
 * 判定エンジンの内部理由 (reason/detail) は返さない。
 """
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import secrets
 from datetime import UTC
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -32,12 +35,10 @@ router = APIRouter(prefix="/api/solve", tags=["solve"])
 VERDICT_MESSAGE = {
     "AC": "あなたの答えは、模範解答と同じ内容です。",
     "WA": "あなたの答えは、模範解答とは違う内容です。",
-    "PENDING": "同じ内容かどうかを確かめられませんでした。"
-    "まちがいとは限りません。出題者に確認してください。",
 }
 
 STATUS_MESSAGE = {
-    "undecided": "同値かどうかの証明が得られませんでした。まちがいとは限らず、提出回数には含まれません。",
+    "undecided": "採点処理に失敗しました。時間をおいて再提出してください。提出回数には含まれません。",
     "input_error": "入力を数式として解釈できませんでした。内容を直して再提出してください。提出回数には含まれません。",
     "problem_error": "この問題の模範解答を処理できません。提出回数には含まれません。",
     "timeout": "判定が時間内に完了しませんでした。提出回数には含まれません。",
@@ -157,6 +158,23 @@ def create_submission(
 
     options = dict(problem.parse_options or {})
     options["ordered_list"] = bool(problem.ordered_list)
+    # Seed rotation and answer binding prevent a fixed public-point attack.
+    # The seed stays inside the isolated judge worker and is never serialized
+    # into a response, submission row, or client-visible diagnostic.
+    nonce = secrets.token_bytes(32)
+    answer_hash = hashlib.sha256(answer.encode("utf-8")).digest()
+    seed_input = b"\0".join(
+        (
+            b"exactroom-numeric-judge-v1",
+            str(problem.id).encode("ascii"),
+            str(ctx.participant.id).encode("ascii"),
+            nonce,
+            answer_hash,
+        )
+    )
+    options["sampling_seed"] = hmac.new(
+        settings.secret_key.encode("utf-8"), seed_input, hashlib.sha256
+    ).digest()
     # ★ 模範解答はここでだけ使う。結果オブジェクトからは取り出さない。
     result = judge_isolated(
         problem.answer_latex,

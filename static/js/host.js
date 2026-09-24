@@ -268,7 +268,7 @@ $("selftest-run").addEventListener("click", async () => {
       host.token
     );
     area.textContent = "";
-    const banner = el("div", { className: `banner ${result.verdict || "PENDING"}` });
+    const banner = el("div", { className: `banner ${result.verdict || "status-error"}` });
     banner.appendChild(
       el("div", {
         className: "headline",
@@ -370,7 +370,7 @@ function renderSubmissions() {
   setText(
     $("submission-summary"),
     `${rows.length} 件${hasOlderSubmissions ? " (さらに古い提出あり)" : ""} — ` +
-      `AC ${counts.AC} / WA ${counts.WA} / 未確定・処理エラー ${counts.unresolved}`
+      `AC ${counts.AC} / WA ${counts.WA} / 入力・採点エラー ${counts.unresolved}`
   );
 
   if (!rows.length) {
