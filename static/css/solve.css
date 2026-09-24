@@ -208,3 +208,9 @@
 @media (max-width: 767px) {
   .input-mode-switch .mode-button { min-height: 44px; }
 }
+
+
+/* Keep the answer workspace aligned with the shared blue theme. */
+:root { --solve-accent: #3158c9; --solve-accent-hover: #2648aa; --solve-accent-soft: #f1f4fc; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --solve-accent: #8eacff; --solve-accent-hover: #a8beff; --solve-accent-soft: #212e49; } }
+:root[data-theme="dark"] { --solve-accent: #8eacff; --solve-accent-hover: #a8beff; --solve-accent-soft: #212e49; }
