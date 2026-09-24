@@ -61,6 +61,7 @@ def test_submission_response_does_not_contain_answer(app_client, host, solver):
             assert set(body) <= {
                 "submission_id",
                 "problem_id",
+                "status",
                 "verdict",
                 "message",
                 "created_at",
@@ -128,7 +129,8 @@ def test_error_paths_do_not_leak(app_client, host, solver):
         json={"problem_id": problem["id"], "answer_latex": "1"},
     )
     assert result.status_code == 201
-    assert result.json()["verdict"] == "PENDING"
+    assert result.json()["status"] == "problem_error"
+    assert result.json()["verdict"] is None
     assert "壊れた秘密" not in result.text
 
 

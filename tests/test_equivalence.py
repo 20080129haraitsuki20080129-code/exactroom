@@ -10,7 +10,16 @@ from __future__ import annotations
 import pytest
 import sympy as sp
 
-from app.mathjudge.equivalence import AC, PENDING, WA, judge
+from app.mathjudge.equivalence import (
+    AC,
+    EQUIVALENT,
+    NOT_EQUIVALENT,
+    PENDING,
+    UNDECIDED,
+    WA,
+    compare_parsed,
+    judge,
+)
 from app.mathjudge.exactzero import NONZERO, UNKNOWN, ZERO, decide_zero
 
 
@@ -72,7 +81,9 @@ AC_CASES = [
 
 @pytest.mark.parametrize("model,submitted", AC_CASES)
 def test_ac(model, submitted):
-    assert verdict(model, submitted) == AC, (model, submitted)
+    result = judge(model, submitted)
+    assert result.status == "judged"
+    assert result.verdict == AC, (model, submitted)
 
 
 # --------------------------------------------------------------------------
@@ -113,7 +124,24 @@ WA_CASES = [
 
 @pytest.mark.parametrize("model,submitted", WA_CASES)
 def test_wa(model, submitted):
-    assert verdict(model, submitted) == WA, (model, submitted)
+    result = judge(model, submitted)
+    assert result.status == "judged"
+    assert result.verdict == WA, (model, submitted)
+
+
+def test_equivalence_state_is_separate_from_judge_status(monkeypatch):
+    import app.mathjudge.equivalence as equivalence
+    from app.mathjudge.parser import ParseOptions, parse_latex_answer
+
+    options = ParseOptions()
+    equal = parse_latex_answer("x^2", options)
+    same = parse_latex_answer("x*x", options)
+    different = parse_latex_answer("x+1", options)
+    assert compare_parsed(equal, same)[0] == EQUIVALENT
+    assert compare_parsed(equal, different)[0] == NOT_EQUIVALENT
+    assert judge("x^2", "x*x").status == "judged"
+    monkeypatch.setattr(equivalence, "_compare_items", lambda *_args: PENDING)
+    assert compare_parsed(equal, same)[0] == UNDECIDED
 
 
 # --------------------------------------------------------------------------
@@ -123,13 +151,15 @@ def test_wa(model, submitted):
 
 def test_pending_on_unparsable_submission():
     result = judge(r"x^2", r"\text{よくわかりません}")
-    assert result.verdict == PENDING
+    assert result.status == "input_error"
+    assert result.verdict is None
     assert result.reason == "submission_parse_error"
 
 
 def test_pending_on_broken_model_answer():
     result = judge(r"\text{壊れた模範解答}", r"1")
-    assert result.verdict == PENDING
+    assert result.status == "problem_error"
+    assert result.verdict is None
     assert result.reason == "model_parse_error"
     # 提出者に返すメッセージに模範解答の中身を含めない
     assert "壊れた模範解答" not in result.student_message

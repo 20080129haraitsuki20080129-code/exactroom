@@ -179,9 +179,9 @@ function setupVirtualKeyboardSpacing(input) {
 function showResult(result) {
   const area = $("result-area");
   area.textContent = "";
-  const banner = el("div", { className: `banner ${result.verdict}` });
+  const banner = el("div", { className: `banner ${result.verdict || "PENDING"}` });
   banner.appendChild(
-    el("div", { className: "headline", text: verdictText(result.verdict, { long: true }) })
+    el("div", { className: "headline", text: verdictText(result.verdict, { long: true, status: result.status }) })
   );
   banner.appendChild(el("div", { className: "small", text: result.message || "" }));
   if (result.remaining_submissions !== null && result.remaining_submissions !== undefined) {
@@ -211,7 +211,7 @@ async function loadHistory() {
       body.appendChild(
         el("tr", {}, [
           el("td", { className: "small nowrap", text: formatTime(row.created_at) }),
-          el("td", {}, [verdictBadge(row.verdict)]),
+          el("td", {}, [verdictBadge(row.verdict, row.status)]),
           el("td", { className: "tex small", text: row.answer_latex }),
         ])
       );

@@ -24,7 +24,7 @@ def test_inline_runner_returns_dict():
     inline = runner.InlineRunner()
     result = inline.run(r"\frac{1}{2}", r"0.5", {})
     assert result["verdict"] == "AC"
-    assert set(result) >= {"verdict", "reason", "student_message", "elapsed_ms"}
+    assert set(result) >= {"status", "verdict", "reason", "student_message", "elapsed_ms"}
 
 
 @pytest.mark.skipif(
@@ -38,8 +38,8 @@ def test_process_pool_judges_and_recovers(process_runner):
 
         # 極端に短いタイムアウトでは判定保留になり、プールは自動復旧する
         timed_out = pool.run(r"x^2-1", r"(x-1)(x+1)", {}, timeout=0.000001)
-        assert timed_out["verdict"] == "PENDING"
-        assert timed_out["reason"] in ("timeout", "worker_error")
+        assert timed_out["status"] in ("timeout", "internal_error")
+        assert timed_out["verdict"] is None
 
         again = pool.run(r"\frac{1}{2}", r"0.5", {}, timeout=60)
         assert again["verdict"] == "AC"

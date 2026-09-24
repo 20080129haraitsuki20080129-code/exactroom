@@ -323,6 +323,7 @@ def self_test(
         timeout=settings.judge_timeout_sec,
     )
     return SelfTestResponse(
+        status=result.get("status", "undecided"),
         verdict=result.get("verdict", "PENDING"),
         reason=result.get("reason", ""),
         detail=result.get("detail", ""),
@@ -382,7 +383,8 @@ def list_submissions(
             participant_id=s.participant_id,
             participant_name=name,
             answer_latex=s.answer_latex,
-            verdict=s.verdict,
+            status=s.status,
+            verdict=s.verdict if s.status == "judged" else None,
             reason=s.reason,
             detail=s.detail,
             elapsed_ms=s.elapsed_ms,

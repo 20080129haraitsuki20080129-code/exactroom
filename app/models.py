@@ -164,6 +164,8 @@ class Submission(Base):
     answer_latex: Mapped[str] = mapped_column(Text)
     #: "AC" | "WA" | "PENDING"
     verdict: Mapped[str] = mapped_column(String(8), index=True)
+    #: Request lifecycle status, independent from mathematical verdict.
+    status: Mapped[str] = mapped_column(String(24), default="judged", index=True)
     #: 判定根拠コード (出題者のみ)
     reason: Mapped[str] = mapped_column(String(48), default="")
     #: 判定の詳細 (出題者のみ)

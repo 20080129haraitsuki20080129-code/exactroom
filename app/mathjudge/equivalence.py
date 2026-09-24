@@ -27,14 +27,25 @@ AC = "AC"
 WA = "WA"
 PENDING = "PENDING"
 
+# A mathematical comparison is independent from the request/worker lifecycle.
+EQUIVALENT = "equivalent"
+NOT_EQUIVALENT = "not_equivalent"
+UNDECIDED = "undecided"
+
+JUDGED = "judged"
+INPUT_ERROR = "input_error"
+PROBLEM_ERROR = "problem_error"
+INTERNAL_ERROR = "internal_error"
+
 #: 集合・リストの要素数の上限 (総当たり比較の爆発を防ぐ)
 MAX_ELEMENTS = 12
 
 
 @dataclass(slots=True)
 class JudgeResult:
-    verdict: str
+    verdict: str | None
     reason: str
+    status: str | None = None
     #: 出題者向けの補足 (提出者には返さない)
     detail: str = ""
     #: 提出者に見せてよいメッセージ (自分の入力に関するものだけ)
@@ -44,6 +55,7 @@ class JudgeResult:
 
     def to_dict(self) -> dict:
         return {
+            "status": self.status or (JUDGED if self.verdict in (AC, WA) else UNDECIDED),
             "verdict": self.verdict,
             "reason": self.reason,
             "detail": self.detail,
@@ -359,12 +371,13 @@ def compare_parsed(
     """解析済みの解答どうしを比較する。
 
     Returns:
-        ``(verdict, reason)``
+        ``(equivalence_state, reason)``. This is deliberately separate from
+        request status and the legacy AC/WA/PENDING verdict field.
     """
     mk, sk = model.kind, submitted.kind
     # 集合とカンマ区切りリストは同じ「複数解」とみなす
     if _KIND_ORDER[mk] != _KIND_ORDER[sk]:
-        return WA, "kind_mismatch"
+        return NOT_EQUIVALENT, "kind_mismatch"
 
     if _KIND_ORDER[mk] == 2:
         ma = model.single if mk == "set" else None
@@ -380,24 +393,31 @@ def compare_parsed(
         if sk == "set" and sa is S.EmptySet:
             selems = []
         if not melems and not selems:
-            return AC, "empty_sets"
+            return EQUIVALENT, "empty_sets"
         if bool(melems) != bool(selems):
-            return WA, "cardinality"
+            return NOT_EQUIVALENT, "cardinality"
         verdict = _compare_collections(melems, selems, ordered=ordered_list)
-        return verdict, {AC: "collection_equal", WA: "collection_differs"}.get(
-            verdict, "collection_undecided"
-        )
+        state = {AC: EQUIVALENT, WA: NOT_EQUIVALENT}.get(verdict, UNDECIDED)
+        reason = {
+            EQUIVALENT: "collection_equal",
+            NOT_EQUIVALENT: "collection_differs",
+        }.get(state, "collection_undecided")
+        return state, reason
 
     verdict = _compare_items(model.single, submitted.single)
     if mk == "rel":
-        reason = {AC: "relation_equivalent", WA: "relation_differs"}.get(
-            verdict, "relation_undecided"
-        )
+        state = {AC: EQUIVALENT, WA: NOT_EQUIVALENT}.get(verdict, UNDECIDED)
+        reason = {
+            EQUIVALENT: "relation_equivalent",
+            NOT_EQUIVALENT: "relation_differs",
+        }.get(state, "relation_undecided")
     else:
-        reason = {AC: "expression_equal", WA: "expression_differs"}.get(
-            verdict, "expression_undecided"
-        )
-    return verdict, reason
+        state = {AC: EQUIVALENT, WA: NOT_EQUIVALENT}.get(verdict, UNDECIDED)
+        reason = {
+            EQUIVALENT: "expression_equal",
+            NOT_EQUIVALENT: "expression_differs",
+        }.get(state, "expression_undecided")
+    return state, reason
 
 
 def judge(
@@ -425,7 +445,8 @@ def judge(
     except MathError as exc:
         return finish(
             JudgeResult(
-                verdict=PENDING,
+                status=INPUT_ERROR,
+                verdict=None,
                 reason="submission_parse_error",
                 detail=f"提出答案を解釈できません: {exc.message}",
                 student_message=exc.message,
@@ -435,7 +456,8 @@ def judge(
     except Exception:
         return finish(
             JudgeResult(
-                verdict=PENDING,
+                status=INPUT_ERROR,
+                verdict=None,
                 reason="submission_parse_error",
                 detail="提出答案を解釈できません。",
                 student_message="解答を数式として解釈できませんでした。",
@@ -448,7 +470,8 @@ def judge(
     except MathError as exc:
         return finish(
             JudgeResult(
-                verdict=PENDING,
+                status=PROBLEM_ERROR,
+                verdict=None,
                 reason="model_parse_error",
                 detail=f"模範解答を解釈できません: {exc.message}",
                 student_message="この問題は現在採点できません。出題者にお問い合わせください。",
@@ -458,7 +481,8 @@ def judge(
     except Exception:
         return finish(
             JudgeResult(
-                verdict=PENDING,
+                status=PROBLEM_ERROR,
+                verdict=None,
                 reason="model_parse_error",
                 detail="模範解答を解釈できません。",
                 student_message="この問題は現在採点できません。出題者にお問い合わせください。",
@@ -466,24 +490,27 @@ def judge(
         )
 
     try:
-        verdict, reason = compare_parsed(model, submitted, ordered_list=ordered_list)
+        state, reason = compare_parsed(model, submitted, ordered_list=ordered_list)
     except Exception as exc:  # pragma: no cover - 防御的
         return finish(
             JudgeResult(
-                verdict=PENDING,
+                status=INTERNAL_ERROR,
+                verdict=None,
                 reason="internal_error",
                 detail=f"判定中に例外が発生しました: {type(exc).__name__}",
                 student_message="判定に失敗しました。時間をおいて再送してください。",
             )
         )
 
+    verdict = {EQUIVALENT: AC, NOT_EQUIVALENT: WA}.get(state)
     messages = {
         AC: "厳密に同値であることを確認しました。",
         WA: "厳密に同値でないことを確認しました。",
-        PENDING: "同値かどうかを厳密に判定できませんでした (判定保留)。",
+        None: "同値かどうかを厳密に判定できませんでした (判定保留)。",
     }
     return finish(
         JudgeResult(
+            status=JUDGED if verdict is not None else UNDECIDED,
             verdict=verdict,
             reason=reason,
             detail=f"kind={model.kind}/{submitted.kind} reason={reason}",

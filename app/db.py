@@ -91,6 +91,9 @@ _ADDED_COLUMNS: dict[str, dict[str, str]] = {
     "rooms": {
         "allow_new_participants": "BOOLEAN NOT NULL DEFAULT 1",
     },
+    "submissions": {
+        "status": "VARCHAR(24) NOT NULL DEFAULT 'judged'",
+    },
 }
 
 
@@ -120,6 +123,12 @@ def _apply_light_migrations(engine) -> None:
                 connection.execute(
                     text(f"ALTER TABLE {table} ADD COLUMN {name} {definition}")
                 )
+        if "status" in _existing_columns(connection, "submissions"):
+            # Rows written before lifecycle statuses existed used PENDING for
+            # both mathematical uncertainty and operational failures.
+            connection.execute(
+                text("UPDATE submissions SET status = 'undecided' WHERE verdict = 'PENDING' AND status = 'judged'")
+            )
 
 
 def init_db() -> None:

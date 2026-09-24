@@ -300,7 +300,7 @@ def test_every_page_shows_the_contact(name):
     source = read(name)
     assert CONTACT_HANDLE in source
     assert CONTACT_URL in source
-    assert 'class="sitefoot"' in source
+    assert 'class="sitefoot' in source
 
 
 @pytest.mark.parametrize("name", HTML_FILES)

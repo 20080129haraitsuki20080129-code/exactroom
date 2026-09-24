@@ -36,6 +36,14 @@ VERDICT_MESSAGE = {
     "まちがいとは限りません。出題者に確認してください。",
 }
 
+STATUS_MESSAGE = {
+    "undecided": "同値かどうかの証明が得られませんでした。まちがいとは限らず、提出回数には含まれません。",
+    "input_error": "入力を数式として解釈できませんでした。入力エラーとして提出回数に含まれます。",
+    "problem_error": "この問題の模範解答を処理できません。提出回数には含まれません。",
+    "timeout": "判定が時間内に完了しませんでした。提出回数には含まれません。",
+    "internal_error": "判定処理に失敗しました。提出回数には含まれません。",
+}
+
 
 def _parse_hints(problem: Problem) -> dict:
     options = dict(problem.parse_options or {})
@@ -113,6 +121,7 @@ def create_submission(
             .where(
                 Submission.participant_id == ctx.participant.id,
                 Submission.room_id == room.id,
+                Submission.status.in_(("judged", "input_error")),
             )
             .order_by(Submission.created_at.desc())
             .limit(1)
@@ -137,6 +146,7 @@ def create_submission(
         select(func.count(Submission.id)).where(
             Submission.problem_id == problem.id,
             Submission.participant_id == ctx.participant.id,
+            Submission.status.in_(("judged", "input_error")),
         )
     ).scalar_one()
     limit = room.max_submissions_per_problem
@@ -153,16 +163,23 @@ def create_submission(
         timeout=settings.judge_timeout_sec,
     )
 
-    verdict = result.get("verdict", "PENDING")
-    if verdict not in ("AC", "WA", "PENDING"):
-        verdict = "PENDING"
+    result_status = result.get("status", "undecided")
+    if result_status not in ("judged", "undecided", "input_error", "problem_error", "timeout", "internal_error"):
+        result_status = "internal_error"
+    verdict = result.get("verdict") if result_status == "judged" else None
+    if verdict not in ("AC", "WA"):
+        result_status = "undecided" if result_status == "judged" else result_status
+        verdict = None
+    consumes_attempt = result_status in ("judged", "input_error")
 
     submission = Submission(
         room_id=room.id,
         problem_id=problem.id,
         participant_id=ctx.participant.id,
         answer_latex=answer,
-        verdict=verdict,
+        # Keep the non-null legacy DB/API column readable by older deployments.
+        verdict=verdict or "PENDING",
+        status=result_status,
         reason=str(result.get("reason", ""))[:48],
         detail=str(result.get("detail", ""))[:2000],
         elapsed_ms=int(result.get("elapsed_ms", 0)),
@@ -176,11 +193,12 @@ def create_submission(
     # 上限の最終確認。最初のカウントと挿入の間に別のリクエストが入り込むと
     # 上限を超えられてしまうので、採番済みの id で自分の順位を数え直す。
     # id は一意かつ単調なので、同時に何件来てもちょうど limit 件だけが残る。
-    if limit:
+    if limit and consumes_attempt:
         rank = db.execute(
             select(func.count(Submission.id)).where(
                 Submission.problem_id == problem.id,
                 Submission.participant_id == ctx.participant.id,
+                Submission.status.in_(("judged", "input_error")),
                 Submission.id <= submission.id,
             )
         ).scalar_one()
@@ -192,16 +210,17 @@ def create_submission(
             )
         used = rank - 1
 
-    message = VERDICT_MESSAGE[verdict]
+    message = VERDICT_MESSAGE[verdict] if verdict else STATUS_MESSAGE[result_status]
     student_message = str(result.get("student_message", ""))
-    if verdict == "PENDING" and student_message:
+    if result_status == "input_error" and student_message:
         # 提出者自身の入力に関する説明だけを付け足す (模範解答の情報は含まない)
         message = f"{message} {student_message}"
 
-    remaining = None if not limit else max(0, limit - used - 1)
+    remaining = None if not limit else max(0, limit - used - (1 if consumes_attempt else 0))
     return SubmissionResult(
         submission_id=submission.id,
         problem_id=problem.id,
+        status=result_status,
         verdict=verdict,
         message=message,
         created_at=submission.created_at,
@@ -229,4 +248,14 @@ def my_submissions(
     if problem_id is not None:
         stmt = stmt.where(Submission.problem_id == problem_id)
     rows = db.execute(stmt).scalars().all()
-    return [MySubmission.model_validate(r) for r in rows]
+    return [
+        MySubmission(
+            id=r.id,
+            problem_id=r.problem_id,
+            answer_latex=r.answer_latex,
+            status=r.status,
+            verdict=r.verdict if r.status == "judged" else None,
+            created_at=r.created_at,
+        )
+        for r in rows
+    ]

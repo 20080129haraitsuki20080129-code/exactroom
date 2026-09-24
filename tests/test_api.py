@@ -113,7 +113,8 @@ def test_full_flow(app_client, host, solver):
         "/api/solve/submissions",
         json={"problem_id": problem["id"], "answer_latex": r"\text{わかりません}"},
     )
-    assert pending.json()["verdict"] == "PENDING"
+    assert pending.json()["status"] == "input_error"
+    assert pending.json()["verdict"] is None
 
     mine = solver.get("/api/solve/submissions").json()
     assert len(mine) == 3
@@ -135,6 +136,48 @@ def test_full_flow(app_client, host, solver):
     assert csv_response.status_code == 200
     assert "たろう" in csv_response.text
     assert "x^2-1" in csv_response.text
+
+
+def test_problem_error_does_not_consume_attempt(app_client, host, solver, monkeypatch):
+    problem = make_problem(host)
+    from app.routers import solve as solve_router
+
+    real_judge = solve_router.judge_isolated
+    calls = {"count": 0}
+
+    def fail_once(*args, **kwargs):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            return {
+                "status": "problem_error",
+                "verdict": None,
+                "reason": "model_parse_error",
+                "student_message": "This problem cannot be judged.",
+            }
+        return real_judge(*args, **kwargs)
+
+    monkeypatch.setattr(solve_router, "judge_isolated", fail_once)
+    host.patch(
+        "/api/host/settings",
+        json={"max_submissions_per_problem": 1, "submission_cooldown_sec": 0},
+    )
+    unavailable = solver.post(
+        "/api/solve/submissions",
+        json={"problem_id": problem["id"], "answer_latex": "1"},
+    )
+    assert unavailable.status_code == 201
+    assert unavailable.json()["status"] == "problem_error"
+    assert unavailable.json()["verdict"] is None
+    assert unavailable.json()["remaining_submissions"] == 1
+
+    judged = solver.post(
+        "/api/solve/submissions",
+        json={"problem_id": problem["id"], "answer_latex": r"x^2-1"},
+    )
+    assert judged.status_code == 201
+    assert judged.json()["status"] == "judged"
+    assert judged.json()["verdict"] == "AC"
+    assert judged.json()["remaining_submissions"] == 0
 
 
 def test_unpublished_problem_is_hidden(app_client, host, solver):
