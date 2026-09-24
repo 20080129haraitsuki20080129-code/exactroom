@@ -1,191 +1,70 @@
+
 #panel-host[hidden] { display: none !important; }
-
-#panel-host.host-panel {
-  display: grid;
-  grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.8fr);
-  align-items: start;
-  gap: 20px;
-  max-width: 980px;
-  margin: 0 auto;
-}
-
-.host-panel-heading {
-  grid-column: 1 / -1;
-  padding: 8px 2px 2px;
-}
-
-.host-panel-heading .host-eyebrow {
-  margin: 0 0 8px;
-  color: var(--accent);
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-}
-
-.host-panel-heading h1 {
-  margin: 0;
-  font-size: clamp(1.55rem, 3vw, 2rem);
-  line-height: 1.25;
-  letter-spacing: -0.025em;
-}
-
-.host-panel-heading > p:last-child {
-  max-width: 58ch;
-  margin: 10px 0 0;
-  color: var(--text-muted);
-  line-height: 1.65;
-}
-
-#panel-host .create-room-card,
-#panel-host .host-login-card {
-  min-width: 0;
-  padding: clamp(18px, 3vw, 26px);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: 0 12px 32px rgb(0 0 0 / 0.16);
-}
-
+#panel-host.host-panel { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.8fr); align-items: start; gap: 20px; max-width: 980px; margin: 0 auto; }
+.host-panel-heading { grid-column: 1 / -1; padding: 8px 2px 2px; }
+.host-panel-heading .host-eyebrow { margin: 0 0 8px; color: var(--accent); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; }
+.host-panel-heading h1 { margin: 0; font-size: clamp(1.55rem, 3vw, 2rem); line-height: 1.25; letter-spacing: -0.025em; }
+.host-panel-heading > p:last-child { max-width: 58ch; margin: 10px 0 0; color: var(--text-muted); line-height: 1.65; }
+#panel-host .create-room-card, #panel-host .host-login-card { min-width: 0; padding: clamp(18px, 3vw, 26px); border: 1px solid var(--border-soft); border-radius: var(--radius); background: var(--surface); box-shadow: 0 12px 32px rgb(0 0 0 / 0.16); }
 #panel-host .create-room-card { grid-column: 1; }
 #panel-host .host-login-card { grid-column: 2; }
-
-#panel-host .room-card-heading {
-  display: flex;
-  gap: 13px;
-  align-items: flex-start;
-  margin: 0 0 22px;
-}
-
-#panel-host .room-step {
-  display: grid;
-  flex: 0 0 38px;
-  width: 38px;
-  height: 38px;
-  place-items: center;
-  border-radius: 12px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-
-#panel-host .room-card-heading h2,
-#panel-host .host-login-card h2 {
-  margin: 0;
-  font-size: 1.15rem;
-  letter-spacing: -0.015em;
-}
-
-#panel-host .room-card-heading p,
-#panel-host .host-login-card > p,
-#panel-host .room-create-actions p {
-  margin: 7px 0 0;
-  color: var(--text-muted);
-  font-size: 0.9rem;
-  line-height: 1.6;
-}
-
-#panel-host form > label,
-#panel-host .room-secret-field > label,
-#panel-host .room-token-field > label {
-  display: block;
-  margin: 18px 0 7px;
-  font-weight: 650;
-}
-
-#panel-host .optional-label {
-  margin-left: 6px;
-  color: var(--text-muted);
-  font-size: 0.78rem;
-  font-weight: 400;
-}
-
-#panel-host input[type="text"],
-#panel-host input[type="password"] {
-  width: 100%;
-  min-height: 48px;
-  padding: 11px 13px;
-  border: 1px solid var(--border-soft);
-  border-radius: 10px;
-  background: var(--surface-2);
-  color: inherit;
-  font: inherit;
-}
-
-#panel-host input:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-#panel-host .hint {
-  margin: 7px 0 14px;
-  color: var(--text-muted);
-  font-size: 0.84rem;
-  line-height: 1.55;
-}
-
+#panel-host .room-card-heading { display: flex; gap: 13px; align-items: flex-start; margin: 0 0 22px; }
+#panel-host .room-step { display: grid; flex: 0 0 38px; width: 38px; height: 38px; place-items: center; border-radius: 12px; background: var(--accent-soft); color: var(--accent); font-size: 0.8rem; font-weight: 700; }
+#panel-host .room-card-heading h2, #panel-host .host-login-card h2 { margin: 0; font-size: 1.15rem; letter-spacing: -0.015em; }
+#panel-host .room-card-heading p, #panel-host .host-login-card > p, #panel-host .room-create-actions p { margin: 7px 0 0; color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; }
+#panel-host form > label, #panel-host .room-secret-field > label, #panel-host .room-token-field > label { display: block; margin: 18px 0 7px; font-weight: 650; }
+#panel-host .optional-label { margin-left: 6px; color: var(--text-muted); font-size: 0.78rem; font-weight: 400; }
+#panel-host input[type="text"], #panel-host input[type="password"] { width: 100%; min-height: 48px; padding: 11px 13px; border: 1px solid var(--border-soft); border-radius: 10px; background: var(--surface-2); color: inherit; font: inherit; }
+#panel-host input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#panel-host .hint { margin: 7px 0 14px; color: var(--text-muted); font-size: 0.84rem; line-height: 1.55; }
 #panel-host .room-create-actions { margin-top: 20px; }
-#panel-host .create-room-submit,
-#panel-host .host-login-submit {
-  width: 100%;
-  min-height: 50px;
-  padding: 12px 16px;
-  border: 0;
-  border-radius: 11px;
-  background: var(--accent);
-  color: #fff;
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-  transition: filter 140ms ease, transform 140ms ease;
-}
-
-#panel-host .create-room-submit:hover,
-#panel-host .host-login-submit:hover { filter: brightness(1.08); }
-#panel-host .create-room-submit:active,
-#panel-host .host-login-submit:active { transform: translateY(1px); }
-#panel-host .create-room-submit:focus-visible,
-#panel-host .host-login-submit:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
-}
-
+#panel-host .create-room-submit, #panel-host .host-login-submit { width: 100%; min-height: 50px; padding: 12px 16px; border: 0; border-radius: 11px; background: var(--accent); color: #fff; font: inherit; font-weight: 700; cursor: pointer; transition: filter 140ms ease, transform 140ms ease; }
+#panel-host .create-room-submit:hover, #panel-host .host-login-submit:hover { filter: brightness(1.08); }
+#panel-host .create-room-submit:active, #panel-host .host-login-submit:active { transform: translateY(1px); }
+#panel-host .create-room-submit:focus-visible, #panel-host .host-login-submit:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 #panel-host .room-create-actions p { text-align: center; }
-
-#panel-host .host-login-card .login-icon {
-  display: grid;
-  width: 38px;
-  height: 38px;
-  margin: 0 0 15px;
-  place-items: center;
-  border: 1px solid var(--border-soft);
-  border-radius: 12px;
-  color: var(--text-muted);
-}
-
+#panel-host .host-login-card .login-icon { display: grid; width: 38px; height: 38px; margin: 0 0 15px; place-items: center; border: 1px solid var(--border-soft); border-radius: 12px; color: var(--text-muted); }
 #panel-host .host-login-card form { margin-top: 18px; }
-#panel-host .host-login-card form label {
-  display: block;
-  margin: 16px 0 7px;
-  font-weight: 650;
-}
-
+#panel-host .host-login-card form label { display: block; margin: 16px 0 7px; font-weight: 650; }
 #panel-host .host-login-submit { background: var(--surface-2); color: inherit; }
 #panel-host .error-box:not(:empty) { margin-top: 12px; line-height: 1.5; }
 #panel-host .ok-box:not(:empty) { margin-top: 12px; line-height: 1.5; }
+@media (max-width: 760px) { #panel-host.host-panel { grid-template-columns: minmax(0, 1fr); gap: 14px; max-width: 560px; } #panel-host .create-room-card, #panel-host .host-login-card { grid-column: 1; } }
+@media (prefers-reduced-motion: reduce) { #panel-host .create-room-submit, #panel-host .host-login-submit { transition: none; } }
 
-@media (max-width: 760px) {
-  #panel-host.host-panel {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 14px;
-    max-width: 560px;
-  }
-
-  #panel-host .create-room-card,
-  #panel-host .host-login-card { grid-column: 1; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  #panel-host .create-room-submit,
-  #panel-host .host-login-submit { transition: none; }
-}
+/* Keep the main task obvious and reveal advanced fields only when needed. */
+.role-choice { width: min(100%, 700px); margin: 0 auto 24px; padding: 3px; gap: 3px; grid-template-columns: 1fr 1fr; border: 1px solid var(--border-soft); border-radius: 11px; background: var(--surface-2); }
+.role-card { min-height: 58px; padding: 8px 12px; gap: 1px; border: 1px solid transparent; border-radius: 8px; background: transparent; box-shadow: none; text-align: center; }
+.role-card .role-title { font-size: 1rem; }
+.role-card .role-sub { font-size: 0.76rem; line-height: 1.35; }
+.role-card[aria-pressed="true"] { border-color: var(--border-soft); background: var(--surface); box-shadow: 0 1px 2px rgb(16 24 40 / 5%); }
+.role-card[aria-pressed="true"] .role-title::before { content: ""; }
+.role-card[aria-pressed="true"] .role-title { color: var(--text); }
+#panel-host.host-panel { display: grid; grid-template-columns: minmax(0, 680px); justify-content: center; gap: 10px; max-width: 720px; }
+.host-panel-heading { padding: 4px 2px 8px; }
+.host-panel-heading .host-eyebrow { margin-bottom: 5px; }
+.host-panel-heading h1 { font-size: clamp(1.45rem, 3vw, 1.8rem); }
+.host-panel-heading > p:last-child { margin-top: 6px; }
+#panel-host .create-room-card { grid-column: 1; padding: clamp(18px, 3vw, 28px); border-color: var(--border-soft); border-radius: 12px; box-shadow: none; }
+#panel-host .room-card-heading { margin-bottom: 16px; }
+#panel-host .room-card-heading h2 { font-size: 1.08rem; }
+#panel-host .room-card-heading p { margin-top: 3px; font-size: 0.84rem; }
+#panel-host form > label, #panel-host .room-secret-field > label, #panel-host .room-token-field > label { margin-top: 14px; }
+#panel-host .hint { margin: 5px 0 10px; font-size: 0.8rem; }
+#panel-host details { margin: 12px 0 4px; border-top: 1px solid var(--border-soft); border-bottom: 1px solid var(--border-soft); }
+#panel-host details summary { display: flex; min-height: 48px; align-items: center; gap: 8px; color: var(--text); cursor: pointer; font-weight: 600; list-style-position: inside; }
+#panel-host details summary span { color: var(--text-muted); font-size: 0.78rem; font-weight: 400; }
+#panel-host details:not([open]) + .room-secret-field { margin-top: 4px; }
+#panel-host .room-create-actions { margin-top: 18px; }
+#panel-host .create-room-submit { min-height: 48px; border-radius: 8px; }
+#panel-host .room-create-actions p { margin-top: 5px; font-size: 0.78rem; }
+#panel-host .host-login-card { grid-column: 1; min-width: 0; padding: 0 4px; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+#panel-host .host-login-card > summary { display: flex; min-height: 50px; align-items: center; color: var(--text-muted); cursor: pointer; font-size: 0.9rem; font-weight: 600; }
+#panel-host .host-login-card > p, #panel-host .host-login-card form { margin-left: 18px; }
+#panel-host .host-login-card > p { margin-top: 0; font-size: 0.82rem; }
+#panel-host .host-login-card form { max-width: 480px; margin: 8px 0 20px 18px; }
+#panel-host .host-login-card .host-login-submit { width: auto; min-width: 190px; }
+#panel-host .info-box:empty { display: none; }
+#panel-host .info-box:not(:empty) { margin: 0 0 14px; padding: 12px 14px; border-left: 3px solid var(--accent); border-radius: 6px; background: var(--accent-soft); color: var(--text); font-size: 0.86rem; line-height: 1.55; }
+@media (max-width: 560px) { .role-choice { margin-bottom: 19px; } .role-card { padding: 7px 5px; } .role-card .role-title { font-size: 0.92rem; } .role-card .role-sub { font-size: 0.68rem; } #panel-host.host-panel { gap: 8px; } .host-panel-heading { padding-bottom: 4px; } .host-panel-heading > p:last-child { font-size: 0.88rem; } #panel-host .create-room-card { padding: 18px; } #panel-host .host-login-card form { margin-left: 8px; } }
+@media (prefers-color-scheme: dark) { .role-card[aria-pressed="true"] { background: var(--surface-2); } }
