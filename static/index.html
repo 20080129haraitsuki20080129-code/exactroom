@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -9,7 +10,7 @@
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
 <link rel="manifest" href="/static/manifest.json">
-<meta name="theme-color" content="#2f6df6">
+<meta name="theme-color" content="#3158c9">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="ExactRoom">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -49,8 +50,7 @@
       <h2>部屋に参加する</h2>
       <form id="join-form" autocomplete="off">
         <label for="join-code">部屋コード</label>
-        <input type="text" id="join-code" class="mono" inputmode="latin" autocapitalize="characters"
-               maxlength="16" placeholder="例: K7M2QD" required>
+        <input type="text" id="join-code" class="mono" inputmode="latin" autocapitalize="characters" maxlength="16" placeholder="例: K7M2QD" required>
         <label for="join-name">あなたの名前</label>
         <input type="text" id="join-name" maxlength="24" placeholder="例: 山田太郎" required>
         <details>
@@ -59,9 +59,7 @@
           <input type="text" id="join-recovery" class="mono" maxlength="32" placeholder="例: K7M2-QD84">
           <p class="hint">最初に参加したときに表示されたコードです。同じ名前で入り直すときに使います。</p>
         </details>
-        <div class="row" style="margin-top:16px">
-          <button type="submit" class="primary" id="join-submit">参加する</button>
-        </div>
+        <div class="row" style="margin-top:16px"><button type="submit" class="primary" id="join-submit">参加する</button></div>
         <div class="error-box" id="join-error" role="alert"></div>
       </form>
     </div>
@@ -75,75 +73,53 @@
     </header>
 
     <div class="card create-room-card">
-      <div class="room-card-heading">
-        <span class="room-step" aria-hidden="true">01</span>
-        <div>
-          <h2>新しい部屋を作る</h2>
-          <p>部屋コードは自動発行にも、任意のコードにもできます。</p>
-        </div>
-      </div>
+      <div class="room-card-heading"><div><h2>新しい部屋</h2><p>まず部屋の名前と、管理用キーを設定します。</p></div></div>
+      <p class="info-box" id="create-disabled" role="status"></p>
       <form id="create-form" autocomplete="off">
         <label for="create-title">部屋の名前 <span class="optional-label">任意</span></label>
         <input type="text" id="create-title" maxlength="120" placeholder="例: 数学II・三角関数の演習">
-        <p class="hint">参加者にも表示されます。授業名や演習名を付けると見分けやすくなります。</p>
-
-        <label for="create-code">部屋コード <span class="optional-label">任意</span></label>
-        <input type="text" id="create-code" class="mono" inputmode="latin"
-               autocapitalize="characters" maxlength="16" placeholder="空欄なら自動で発行">
-        <p class="hint">指定する場合は英数字 3 文字以上。参加者はこのコード、または作成後の参加リンクから入室します。</p>
-
+        <p class="hint">参加者にも表示されます。空欄でも作成できます。</p>
+        <details class="optional-settings">
+          <summary>詳細設定 <span>部屋コードを指定する場合</span></summary>
+          <label for="create-code">部屋コード <span class="optional-label">任意</span></label>
+          <input type="text" id="create-code" class="mono" inputmode="latin" autocapitalize="characters" maxlength="16" placeholder="空欄なら自動で発行">
+          <p class="hint">指定する場合は英数字 3 文字以上です。</p>
+        </details>
         <div class="room-secret-field">
-          <label for="create-secret">出題者用の秘密キー</label>
-          <input type="password" id="create-secret" minlength="8" maxlength="128"
-                 autocomplete="new-password" placeholder="8 文字以上のキー" required>
-          <p class="hint">管理画面へログインするときに使います。安全な場所に控えてください。忘れると部屋を管理できなくなります。</p>
+          <label for="create-secret">管理用キー</label>
+          <input type="password" id="create-secret" minlength="8" maxlength="128" autocomplete="new-password" placeholder="8 文字以上のキー" required>
+          <p class="hint">あとで管理画面に入るときに使います。安全な場所に保存してください。</p>
         </div>
-
         <div id="create-token-block" class="room-token-field" hidden>
           <label for="create-token">部屋作成の合言葉 <span id="create-token-required"></span></label>
-          <input type="text" id="create-token" maxlength="128"
-                 autocomplete="off" placeholder="管理者から伝えられた合言葉">
+          <input type="text" id="create-token" maxlength="128" autocomplete="off" placeholder="管理者から伝えられた合言葉">
           <p class="hint" id="create-token-hint"></p>
         </div>
-
         <div class="room-create-actions">
           <button type="submit" class="primary create-room-submit">部屋を作成 <span aria-hidden="true">→</span></button>
-          <p>作成後は、問題の登録や参加者の確認ができます。</p>
+          <p>作成後、すぐに問題を登録できます。</p>
         </div>
         <div class="error-box" id="create-error" role="alert"></div>
-        <div class="error-box" id="create-disabled" role="status"></div>
         <div class="ok-box" id="create-ok" role="status"></div>
       </form>
     </div>
 
-    <aside class="card host-login-card">
-      <div class="login-icon" aria-hidden="true">↗</div>
-      <h2>作成済みの部屋を管理</h2>
-      <p>すでに部屋を作成済みの場合はこちらから入れます。</p>
+    <details class="host-login-card">
+      <summary>作成済みの部屋を管理</summary>
+      <p>部屋コードと管理用キーでログインします。</p>
       <form id="host-form" autocomplete="off">
         <label for="host-code">部屋コード</label>
-        <input type="text" id="host-code" class="mono" inputmode="latin" autocapitalize="characters"
-               maxlength="16" placeholder="例: K7M2QD" required>
-        <label for="host-secret">秘密キー</label>
-        <input type="password" id="host-secret" maxlength="128" autocomplete="current-password"
-               placeholder="作成時に設定したキー" required>
-        <div class="row" style="margin-top:16px">
-          <button type="submit" class="host-login-submit">管理画面へログイン</button>
-        </div>
+        <input type="text" id="host-code" class="mono" inputmode="latin" autocapitalize="characters" maxlength="16" placeholder="例: K7M2QD" required>
+        <label for="host-secret">管理用キー</label>
+        <input type="password" id="host-secret" maxlength="128" autocomplete="current-password" placeholder="作成時に設定したキー" required>
+        <div class="row" style="margin-top:16px"><button type="submit" class="host-login-submit">管理画面へログイン</button></div>
         <div class="error-box" id="host-error" role="alert"></div>
       </form>
-    </aside>
+    </details>
   </section>
 </main>
 
-<footer class="sitefoot">
-  <p>
-    困ったとき・不具合の連絡は X の
-    <a href="https://x.com/oVZb8MNkQJ4Dgeb" target="_blank" rel="noopener noreferrer">@oVZb8MNkQJ4Dgeb</a>
-    まで DM してください。
-  </p>
-</footer>
-
+<footer class="sitefoot"><p>困ったとき・不具合の連絡は X の <a href="https://x.com/oVZb8MNkQJ4Dgeb" target="_blank" rel="noopener noreferrer">@oVZb8MNkQJ4Dgeb</a> まで DM してください。</p></footer>
 <script type="module" src="/static/js/home.js"></script>
 </body>
 </html>
