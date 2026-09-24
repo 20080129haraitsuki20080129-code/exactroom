@@ -51,10 +51,10 @@
 #panel-host .room-card-heading p { margin-top: 3px; font-size: 0.84rem; }
 #panel-host form > label, #panel-host .room-secret-field > label, #panel-host .room-token-field > label { margin-top: 14px; }
 #panel-host .hint { margin: 5px 0 10px; font-size: 0.8rem; }
-#panel-host .optional-settings { margin: 12px 0 4px; border-top: 1px solid var(--border-soft); border-bottom: 1px solid var(--border-soft); }
-#panel-host .optional-settings summary { display: flex; min-height: 48px; align-items: center; gap: 8px; color: var(--text); cursor: pointer; font-weight: 600; list-style-position: inside; }
-#panel-host .optional-settings summary span { color: var(--text-muted); font-size: 0.78rem; font-weight: 400; }
-#panel-host .optional-settings:not([open]) + .room-secret-field { margin-top: 4px; }
+#panel-host #panel-host details { margin: 12px 0 4px; border-top: 1px solid var(--border-soft); border-bottom: 1px solid var(--border-soft); }
+#panel-host #panel-host details summary { display: flex; min-height: 48px; align-items: center; gap: 8px; color: var(--text); cursor: pointer; font-weight: 600; list-style-position: inside; }
+#panel-host #panel-host details summary span { color: var(--text-muted); font-size: 0.78rem; font-weight: 400; }
+#panel-host #panel-host details:not([open]) + .room-secret-field { margin-top: 4px; }
 #panel-host .room-create-actions { margin-top: 18px; }
 #panel-host .create-room-submit { min-height: 48px; border-radius: 8px; }
 #panel-host .room-create-actions p { margin-top: 5px; font-size: 0.78rem; }
