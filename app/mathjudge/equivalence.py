@@ -101,7 +101,7 @@ def _normalize_relation(rel):
     return family, 1, diff
 
 
-def _compare_relations(a, b) -> str:
+def _compare_relations(a, b, domain_conditions=()) -> str:
     r"""2 つの関係式が同値かを判定する。
 
     WA を返すのは「一方だけを満たす厳密な点」を実際に見つけられたときだけ。
@@ -132,7 +132,7 @@ def _compare_relations(a, b) -> str:
                 return PENDING
 
     # 反例探索: 真偽が食い違う厳密な点が見つかれば非同値が確定する
-    if _relation_witness(fam_a, da, fam_b, db):
+    if _relation_witness(fam_a, da, fam_b, db, domain_conditions):
         return WA
     if fam_a == fam_b and prove_equal(da, db) == ZERO:
         return AC
@@ -163,19 +163,27 @@ def _truth_at(family: str, value):
     return sign > 0 if family == "strict" else sign >= 0
 
 
-def _relation_witness(fam_a: str, da, fam_b: str, db) -> bool:
+def _relation_witness(
+    fam_a: str, da, fam_b: str, db, domain_conditions=()
+) -> bool:
     """一方の関係式だけを満たす厳密な点を探す。
 
     見つかればその点が非同値の証明になる。見つからなくても
     「同値である」ことにはならない (判定保留になる)。
     """
+    from .exactzero import _conditions_hold
+
     symbols, candidates = _witness_candidates(da, db)
     if not symbols:
+        if not _conditions_hold(domain_conditions, {}):
+            return False
         ta, tb = _truth_at(fam_a, da), _truth_at(fam_b, db)
         if ta is None or tb is None:
             return False
         return ta != tb
     for subs in candidates:
+        if not _conditions_hold(domain_conditions, subs):
+            continue
         try:
             va = da.subs(subs, simultaneous=True)
             vb = db.subs(subs, simultaneous=True)
@@ -268,7 +276,7 @@ def _safe_simplify(value):
     return out
 
 
-def _compare_sets(a: sp.Set, b: sp.Set) -> str:
+def _compare_sets(a: sp.Set, b: sp.Set, domain_conditions=()) -> str:
     if a is S.EmptySet or b is S.EmptySet:
         if a is S.EmptySet and b is S.EmptySet:
             return AC
@@ -278,14 +286,21 @@ def _compare_sets(a: sp.Set, b: sp.Set) -> str:
     ea, eb = list(a.args), list(b.args)
     if len(ea) > MAX_ELEMENTS or len(eb) > MAX_ELEMENTS:
         return PENDING
-    return _compare_collections(ea, eb, ordered=False)
+    return _compare_collections(
+        ea, eb, ordered=False, domain_conditions=domain_conditions
+    )
 
 
-def _compare_collections(ea: list, eb: list, ordered: bool) -> str:
+def _compare_collections(
+    ea: list, eb: list, ordered: bool, domain_conditions=()
+) -> str:
     if ordered:
         if len(ea) != len(eb):
             return WA
-        statuses = [_compare_items(x, y) for x, y in zip(ea, eb, strict=False)]
+        statuses = [
+            _compare_items(x, y, domain_conditions)
+            for x, y in zip(ea, eb, strict=False)
+        ]
         if all(s == AC for s in statuses):
             return AC
         if any(s == WA for s in statuses):
@@ -297,7 +312,9 @@ def _compare_collections(ea: list, eb: list, ordered: bool) -> str:
     if len(ea) > MAX_ELEMENTS or len(eb) > MAX_ELEMENTS:
         return PENDING
 
-    matrix = [[_compare_items(x, y) for y in eb] for x in ea]
+    matrix = [
+        [_compare_items(x, y, domain_conditions) for y in eb] for x in ea
+    ]
 
     # 「一方にしか現れない要素」が確定すれば非同値
     for row in matrix:
@@ -315,7 +332,9 @@ def _compare_collections(ea: list, eb: list, ordered: bool) -> str:
     def dedup(elements: list) -> list:
         out: list = []
         for e in elements:
-            if not any(_compare_items(e, o) == AC for o in out):
+            if not any(
+                _compare_items(e, o, domain_conditions) == AC for o in out
+            ):
                 out.append(e)
         return out
 
@@ -323,12 +342,12 @@ def _compare_collections(ea: list, eb: list, ordered: bool) -> str:
     if len(ua) != len(ub):
         return WA
     for e in ua:
-        if not any(_compare_items(e, o) == AC for o in ub):
+        if not any(_compare_items(e, o, domain_conditions) == AC for o in ub):
             return WA
     return AC
 
 
-def _compare_items(a, b) -> str:
+def _compare_items(a, b, domain_conditions=()) -> str:
     """式・関係式・集合の 1 要素どうしを比較する。"""
     a_is_rel = isinstance(a, sp.core.relational.Relational)
     b_is_rel = isinstance(b, sp.core.relational.Relational)
@@ -339,18 +358,23 @@ def _compare_items(a, b) -> str:
 
     if a_is_set or b_is_set:
         if a_is_set and b_is_set:
-            return _compare_sets(a, b)
+            return _compare_sets(a, b, domain_conditions)
         return WA
     if a_is_and or b_is_and:
         if a_is_and and b_is_and:
-            return _compare_collections(list(a.args), list(b.args), ordered=False)
+            return _compare_collections(
+                list(a.args),
+                list(b.args),
+                ordered=False,
+                domain_conditions=domain_conditions,
+            )
         return WA
     if a_is_rel or b_is_rel:
         if a_is_rel and b_is_rel:
-            return _compare_relations(a, b)
+            return _compare_relations(a, b, domain_conditions)
         return WA
 
-    status = prove_equal(a, b)
+    status = prove_equal(a, b, domain_conditions=domain_conditions)
     if status == ZERO:
         return AC
     if status == NONZERO:
@@ -396,7 +420,12 @@ def compare_parsed(
             return EQUIVALENT, "empty_sets"
         if bool(melems) != bool(selems):
             return NOT_EQUIVALENT, "cardinality"
-        verdict = _compare_collections(melems, selems, ordered=ordered_list)
+        verdict = _compare_collections(
+            melems,
+            selems,
+            ordered=ordered_list,
+            domain_conditions=model.domain_conditions + submitted.domain_conditions,
+        )
         state = {AC: EQUIVALENT, WA: NOT_EQUIVALENT}.get(verdict, UNDECIDED)
         reason = {
             EQUIVALENT: "collection_equal",
@@ -404,14 +433,41 @@ def compare_parsed(
         }.get(state, "collection_undecided")
         return state, reason
 
-    verdict = _compare_items(model.single, submitted.single)
+    verdict = _compare_items(
+        model.single,
+        submitted.single,
+        model.domain_conditions + submitted.domain_conditions,
+    )
     if mk == "rel":
-        state = {AC: EQUIVALENT, WA: NOT_EQUIVALENT}.get(verdict, UNDECIDED)
+        from .relations import compare_relation_sets
+
+        state = compare_relation_sets(
+            model.single,
+            submitted.single,
+            model.domain_conditions,
+            submitted.domain_conditions,
+        )
+        family = "equation" if (
+            isinstance(model.single, sp.Equality)
+            or isinstance(submitted.single, sp.Equality)
+        ) else "inequality"
+        if state is None:
+            state = {AC: EQUIVALENT, WA: NOT_EQUIVALENT}.get(verdict, UNDECIDED)
+            family = "relation"
         reason = {
-            EQUIVALENT: "relation_equivalent",
-            NOT_EQUIVALENT: "relation_differs",
-        }.get(state, "relation_undecided")
+            EQUIVALENT: f"{family}_solution_equal",
+            NOT_EQUIVALENT: f"{family}_solution_differs",
+        }.get(state, f"{family}_undecided")
     else:
+        from .relations import compare_expression_domains
+
+        domain_state = compare_expression_domains(
+            model.domain_conditions, submitted.domain_conditions
+        )
+        if domain_state == NOT_EQUIVALENT:
+            return NOT_EQUIVALENT, "domain_mismatch"
+        if domain_state == UNDECIDED:
+            return UNDECIDED, "domain_undecided"
         state = {AC: EQUIVALENT, WA: NOT_EQUIVALENT}.get(verdict, UNDECIDED)
         reason = {
             EQUIVALENT: "expression_equal",

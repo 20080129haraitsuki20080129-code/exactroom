@@ -84,6 +84,8 @@ function hintText(hints) {
   parts.push(hints.imaginary_i ? "i は虚数単位" : "i は普通の変数");
   parts.push(hints.log_base === "10" ? "底なしの log は常用対数 (底 10)" : "底なしの log は自然対数");
   if (hints.assume_positive) parts.push("変数は正の実数として扱う");
+  else if (hints.assume_nonnegative) parts.push("変数は 0 以上の実数として扱う");
+  else if (hints.assume_integer) parts.push("変数は整数として扱う");
   else if (hints.assume_real) parts.push("変数は実数として扱う");
   if (hints.ordered_list) parts.push("カンマ区切りの答えは順序も一致させる");
   return `入力の解釈: ${parts.join(" / ")}`;

@@ -85,6 +85,8 @@ function readOptions() {
     imaginary_i: $("o-imag").checked,
     assume_real: $("o-real").checked,
     assume_positive: $("o-positive").checked,
+    assume_nonnegative: $("o-nonnegative").checked,
+    assume_integer: $("o-integer").checked,
     log_base: $("o-log").value,
   };
 }
@@ -95,6 +97,8 @@ function writeOptions(options) {
   $("o-imag").checked = o.imaginary_i !== false;
   $("o-real").checked = o.assume_real !== false;
   $("o-positive").checked = Boolean(o.assume_positive);
+  $("o-nonnegative").checked = Boolean(o.assume_nonnegative);
+  $("o-integer").checked = Boolean(o.assume_integer);
   $("o-log").value = o.log_base === "10" ? "10" : "e";
 }
 

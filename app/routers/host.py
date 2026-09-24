@@ -415,6 +415,7 @@ def export_submissions_csv(
             "problem_id",
             "problem_title",
             "answer_latex",
+            "status",
             "verdict",
             "reason",
             "elapsed_ms",
@@ -430,7 +431,8 @@ def export_submissions_csv(
                 s.problem_id,
                 title,
                 s.answer_latex,
-                s.verdict,
+                s.status,
+                s.verdict if s.status == "judged" else "",
                 s.reason,
                 s.elapsed_ms,
             ]
