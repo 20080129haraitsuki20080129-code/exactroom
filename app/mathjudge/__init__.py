@@ -2,7 +2,7 @@
 
 ``eval`` を使わない安全な TeX パーサ (parser.py)、
 数値近似を使わない厳密ゼロ判定 (exactzero.py)、
-3 値判定 AC / WA / PENDING (equivalence.py) から成る。
+AC / WAの数値fallback付き判定 (equivalence.py) から成る。
 """
 
 from .equivalence import AC, PENDING, WA, JudgeResult, judge  # noqa: F401

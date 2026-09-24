@@ -16,7 +16,7 @@ import threading
 
 from .equivalence import INTERNAL_ERROR, JudgeResult, judge
 
-DEFAULT_TIMEOUT_SEC = 8.0
+DEFAULT_TIMEOUT_SEC = 20.0
 
 
 def _worker_init() -> None:  # pragma: no cover - 子プロセス側
@@ -82,7 +82,7 @@ class JudgePool:
                 verdict=None,
                 reason="timeout",
                 detail=f"判定が {timeout:.0f} 秒以内に終わりませんでした。",
-                student_message="判定に時間がかかりすぎました (判定保留)。",
+                student_message="採点処理が時間内に完了しませんでした。再提出してください。",
             ).to_dict()
         except Exception as exc:
             with self._lock:
@@ -99,7 +99,7 @@ class JudgePool:
                 verdict=None,
                 reason="worker_error",
                 detail=f"ワーカープロセスが異常終了しました: {type(exc).__name__}",
-                student_message="判定に失敗しました (判定保留)。",
+                student_message="採点処理に失敗しました。時間をおいて再提出してください。",
             ).to_dict()
 
     def shutdown(self) -> None:

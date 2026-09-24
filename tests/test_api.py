@@ -138,6 +138,40 @@ def test_full_flow(app_client, host, solver):
     assert "x^2-1" in csv_response.text
 
 
+def test_numeric_seed_stays_server_side_and_response_excludes_diagnostics(
+    app_client, host, solver, monkeypatch
+):
+    problem = make_problem(host)
+    from app.routers import solve as solve_router
+
+    captured = {}
+
+    def fake_judge(model, answer, options, timeout):
+        captured.update(options)
+        return {
+            "status": "judged",
+            "verdict": "AC",
+            "reason": "numeric_fingerprint",
+            "detail": "secret diagnostic",
+            "elapsed_ms": 1,
+            "meta": {"sample_points": ["secret"], "precision": 10000},
+        }
+
+    monkeypatch.setattr(solve_router, "judge_isolated", fake_judge)
+    response = solver.post(
+        "/api/solve/submissions",
+        json={"problem_id": problem["id"], "answer_latex": r"x^2-1"},
+    )
+    assert response.status_code == 201
+    assert response.json()["verdict"] == "AC"
+    assert isinstance(captured["sampling_seed"], bytes)
+    assert len(captured["sampling_seed"]) == 32
+    assert "sampling_seed" not in response.text
+    assert "sample_points" not in response.text
+    assert "secret diagnostic" not in response.text
+    assert "meta" not in response.json()
+
+
 def test_problem_error_does_not_consume_attempt(app_client, host, solver, monkeypatch):
     problem = make_problem(host)
     from app.routers import solve as solve_router

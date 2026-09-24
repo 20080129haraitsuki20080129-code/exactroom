@@ -169,13 +169,15 @@ def test_robots_disallows_indexing():
 
 
 def test_verdict_is_not_conveyed_by_color_alone():
-    """色覚に依らず正誤が分かること (記号とことばを併記する)。"""
+    """色覚に依らず二値判定が分かること。処理エラーはVerdictにしない。"""
     source = strip_comments(read("js", "api.js"))
     assert "verdictBadge" in source
-    for mark in ("○", "✕", "△"):
+    for mark in ("○", "✕"):
         assert mark in source, f"判定の記号 {mark} が無い"
-    for word in ("正解", "不正解", "判定できず"):
+    for word in ("正解", "不正解"):
         assert word in source, f"判定のことば {word} が無い"
+    assert "PENDING" not in source
+    assert "△" not in source
 
     # 判定を描く側が、色クラスだけの表示に戻っていないこと
     for name in ("solve.js", "host.js"):

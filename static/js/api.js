@@ -149,42 +149,42 @@ export function el(tag, options = {}, children = []) {
  * 判定の表し方。
  *
  * 色覚には個人差があるため、色だけで正誤を伝えない。
- * 記号 (○ ✕ △) と日本語のことばを必ず一緒に出す。
+ * 記号 (○ ✕) と日本語のことばを必ず一緒に出す。
  */
 export const VERDICT = {
   AC: { mark: "○", short: "正解", long: "正解です" },
   WA: { mark: "✕", short: "不正解", long: "不正解です" },
-  PENDING: { mark: "△", short: "判定できず", long: "判定できませんでした" },
 };
 
 const STATUS_LABEL = {
-  undecided: { mark: "△", short: "判定保留", long: "判定保留です" },
+  undecided: { mark: "!", short: "採点エラー", long: "採点処理に失敗しました" },
   input_error: { mark: "!", short: "入力エラー", long: "入力を確認してください" },
   problem_error: { mark: "!", short: "採点できず", long: "この問題を採点できません" },
   timeout: { mark: "…", short: "判定タイムアウト", long: "判定が時間内に完了しませんでした" },
   internal_error: { mark: "!", short: "判定エラー", long: "判定処理に失敗しました" },
+  judged: { mark: "!", short: "採点エラー", long: "採点処理に失敗しました" },
 };
 
 export function verdictText(verdict, { long = false, status = "" } = {}) {
   if (status && status !== "judged") {
-    const info = STATUS_LABEL[status] || STATUS_LABEL.undecided;
+    const info = STATUS_LABEL[status] || STATUS_LABEL.internal_error;
     return `${info.mark} ${long ? info.long : info.short}`;
   }
-  const info = VERDICT[verdict] || VERDICT.PENDING;
+  const info = VERDICT[verdict] || STATUS_LABEL.internal_error;
   return `${info.mark} ${long ? info.long : info.short}`;
 }
 
 /** 判定バッジ (記号 + ことば) を作る。 */
 export function verdictBadge(verdict, status = "") {
   if (status && status !== "judged") {
-    const info = STATUS_LABEL[status] || STATUS_LABEL.undecided;
-    const span = el("span", { className: "verdict PENDING" });
+    const info = STATUS_LABEL[status] || STATUS_LABEL.internal_error;
+    const span = el("span", { className: "verdict status-error" });
     span.appendChild(el("span", { attrs: { "aria-hidden": "true" }, text: info.mark }));
     span.appendChild(el("span", { text: info.short }));
     return span;
   }
-  const info = VERDICT[verdict] || VERDICT.PENDING;
-  const span = el("span", { className: `verdict ${verdict}` });
+  const info = VERDICT[verdict] || STATUS_LABEL.internal_error;
+  const span = el("span", { className: VERDICT[verdict] ? `verdict ${verdict}` : "verdict status-error" });
   span.appendChild(el("span", { attrs: { "aria-hidden": "true" }, text: info.mark }));
   span.appendChild(el("span", { text: info.short }));
   return span;

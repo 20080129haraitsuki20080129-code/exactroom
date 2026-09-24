@@ -181,7 +181,7 @@ function setupVirtualKeyboardSpacing(input) {
 function showResult(result) {
   const area = $("result-area");
   area.textContent = "";
-  const banner = el("div", { className: `banner ${result.verdict || "PENDING"}` });
+  const banner = el("div", { className: `banner ${result.verdict || "status-error"}` });
   banner.appendChild(
     el("div", { className: "headline", text: verdictText(result.verdict, { long: true, status: result.status }) })
   );

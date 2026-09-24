@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     cors_origins: str = ""
 
     # ---- 判定エンジン ----
-    judge_timeout_sec: float = 8.0
+    judge_timeout_sec: float = 20.0
     judge_workers: int = 2
     judge_isolation: str = "process"  # process | inline
 

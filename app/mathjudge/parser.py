@@ -27,11 +27,11 @@ from .tokenizer import Token, tokenize
 MAX_DEPTH = 60
 MAX_NODES = 20000
 #: 整数冪の指数の絶対値の上限 (2^{999999} のような爆発を防ぐ)
-MAX_EXPONENT = 1000
+MAX_EXPONENT = 20000
 #: 階乗・二項係数の引数の上限
 MAX_FACTORIAL = 500
 #: 生成される整数の桁数の上限
-MAX_INT_DIGITS = 2000
+MAX_INT_DIGITS = 25000
 #: 添字の式の複雑さの上限 (a_{(x+y+z+w)^{200}} のような展開爆発を防ぐ)
 MAX_SUBSCRIPT_OPS = 16
 MAX_SUBSCRIPT_EXPONENT = 8
