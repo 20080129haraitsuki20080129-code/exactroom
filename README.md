@@ -17,7 +17,7 @@
   | **UNDECIDED** | 同値も非同値も証明できなかった |
 
 - API は処理状態 `status` と互換用の `verdict` を分けます。`AC` / `WA` は証明済みのときだけ返り、入力エラー・問題エラー・タイムアウト・判定保留は `verdict: null` です。
-- `undecided` / `problem_error` / `timeout` / `internal_error` は提出上限に数えず、`input_error` は数えます。
+- `undecided` / `input_error` / `problem_error` / `timeout` / `internal_error` は提出上限に数えません。AC / WA のみ数えます。
 
 - 外部 AI API・有料 API は一切使いません。無料のまま開発・公開・運用できます。
 - PC・スマートフォン両対応。ユニバーサルデザインに配慮しています(下記)。
@@ -283,6 +283,8 @@ LuaLaTeX や XeLaTeX のように、記号を**そのまま**書いても構い�
 | `imaginary_i` | ON | `i` を虚数単位として扱う |
 | `assume_real` | ON | 変数を実数と仮定する |
 | `assume_positive` | OFF | 変数を正の実数と仮定する(`\ln(x^2)=2\ln x` を AC にしたいときなど) |
+| `assume_nonnegative` | OFF | 変数を 0 以上の実数と仮定する |
+| `assume_integer` | OFF | 変数を整数と仮定する |
 | `log_base` | `e` | 底を省略した `\log` の底。`10` にすれば常用対数 |
 | `ordered_list` | OFF | カンマ区切りの複数解の順序も一致させる |
 

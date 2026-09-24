@@ -50,7 +50,7 @@ rooms 1 ──< problems 1 ──< submissions >── 1 participants
 | `statement_latex` | TEXT | `''` | 問題文 (TeX)。**解答者に公開** |
 | `statement_note` | TEXT | `''` | 補足 (プレーンテキスト)。**解答者に公開** |
 | `answer_latex` | TEXT | NOT NULL | **★ 秘密の模範解答 (TeX)。解答者には絶対に送信しない** |
-| `parse_options` | JSON | `{}` | `euler_e` / `imaginary_i` / `log_base` / `assume_real` / `assume_positive` |
+| `parse_options` | JSON | `{}` | `euler_e` / `imaginary_i` / `log_base` / `assume_real` / `assume_positive` / `assume_nonnegative` / `assume_integer` |
 | `ordered_list` | BOOLEAN | `false` | カンマ区切りの複数解を順序込みで比較するか |
 | `is_published` | BOOLEAN | `true` | 非公開なら解答者から見えない |
 | `created_at` / `updated_at` | TIMESTAMPTZ | | |
@@ -102,7 +102,10 @@ rooms 1 ──< problems 1 ──< submissions >── 1 participants
 | --- | --- |
 | `expression_equal` / `expression_differs` / `expression_undecided` | 式の比較 |
 | `relation_equivalent` / `relation_differs` / `relation_undecided` | 関係式の比較 |
+| `equation_solution_equal` / `equation_solution_differs` / `equation_undecided` | 方程式の解集合比較 |
+| `inequality_solution_equal` / `inequality_solution_differs` / `inequality_undecided` | 不等式の解集合比較 |
 | `collection_equal` / `collection_differs` / `collection_undecided` | 集合・複数解の比較 |
+| `domain_mismatch` / `domain_undecided` | 実数式の定義域比較 |
 | `kind_mismatch` | 解答の種類が違う(式 vs 関係式 など) |
 | `cardinality` | 要素数が違う |
 | `submission_parse_error` | 提出答案を TeX として解釈できない (`input_error`) |

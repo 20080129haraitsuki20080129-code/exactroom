@@ -69,6 +69,8 @@ class ParseOptionsIn(BaseModel):
     log_base: str = "e"
     assume_real: bool = True
     assume_positive: bool = False
+    assume_nonnegative: bool = False
+    assume_integer: bool = False
 
     @field_validator("log_base")
     @classmethod

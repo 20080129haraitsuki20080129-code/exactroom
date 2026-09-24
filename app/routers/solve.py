@@ -38,7 +38,7 @@ VERDICT_MESSAGE = {
 
 STATUS_MESSAGE = {
     "undecided": "同値かどうかの証明が得られませんでした。まちがいとは限らず、提出回数には含まれません。",
-    "input_error": "入力を数式として解釈できませんでした。入力エラーとして提出回数に含まれます。",
+    "input_error": "入力を数式として解釈できませんでした。内容を直して再提出してください。提出回数には含まれません。",
     "problem_error": "この問題の模範解答を処理できません。提出回数には含まれません。",
     "timeout": "判定が時間内に完了しませんでした。提出回数には含まれません。",
     "internal_error": "判定処理に失敗しました。提出回数には含まれません。",
@@ -53,6 +53,8 @@ def _parse_hints(problem: Problem) -> dict:
         "log_base": options.get("log_base", "e"),
         "assume_real": bool(options.get("assume_real", True)),
         "assume_positive": bool(options.get("assume_positive", False)),
+        "assume_nonnegative": bool(options.get("assume_nonnegative", False)),
+        "assume_integer": bool(options.get("assume_integer", False)),
         "ordered_list": bool(problem.ordered_list),
     }
 
@@ -121,7 +123,7 @@ def create_submission(
             .where(
                 Submission.participant_id == ctx.participant.id,
                 Submission.room_id == room.id,
-                Submission.status.in_(("judged", "input_error")),
+                Submission.status == "judged",
             )
             .order_by(Submission.created_at.desc())
             .limit(1)
@@ -146,7 +148,7 @@ def create_submission(
         select(func.count(Submission.id)).where(
             Submission.problem_id == problem.id,
             Submission.participant_id == ctx.participant.id,
-            Submission.status.in_(("judged", "input_error")),
+            Submission.status == "judged",
         )
     ).scalar_one()
     limit = room.max_submissions_per_problem
@@ -170,7 +172,7 @@ def create_submission(
     if verdict not in ("AC", "WA"):
         result_status = "undecided" if result_status == "judged" else result_status
         verdict = None
-    consumes_attempt = result_status in ("judged", "input_error")
+    consumes_attempt = result_status == "judged"
 
     submission = Submission(
         room_id=room.id,
@@ -198,7 +200,7 @@ def create_submission(
             select(func.count(Submission.id)).where(
                 Submission.problem_id == problem.id,
                 Submission.participant_id == ctx.participant.id,
-                Submission.status.in_(("judged", "input_error")),
+                Submission.status == "judged",
                 Submission.id <= submission.id,
             )
         ).scalar_one()

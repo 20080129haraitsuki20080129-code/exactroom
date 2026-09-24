@@ -108,7 +108,7 @@ def cmd_export(args) -> None:
         writer = csv.writer(sys.stdout)
         writer.writerow(
             ["submission_id", "submitted_at_utc", "participant", "problem_id",
-             "problem_title", "answer_latex", "verdict", "reason", "elapsed_ms"]
+             "problem_title", "answer_latex", "status", "verdict", "reason", "elapsed_ms"]
         )
         for submission, title, name in rows:
             created = submission.created_at
@@ -119,7 +119,9 @@ def cmd_export(args) -> None:
             writer.writerow(
                 [submission.id, created.isoformat() if created else "", name,
                  submission.problem_id, title, submission.answer_latex,
-                 submission.verdict, submission.reason, submission.elapsed_ms]
+                 submission.status,
+                 submission.verdict if submission.status == "judged" else "",
+                 submission.reason, submission.elapsed_ms]
             )
 
 

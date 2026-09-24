@@ -49,7 +49,13 @@ AC_CASES = [
     (r"\frac{-1+\sqrt{5}}{2}", r"\frac{\sqrt{5}-1}{2}"),
     (r"x=1", r"2x=2"),
     (r"x=1", r"x-1=0"),
+    (r"x=1", r"(x-1)^2=0"),
+    (r"x^2=1", r"(x-1)(x+1)=0"),
+    (r"\frac{x^2-1}{x-1}=0", r"x+1=0"),
+    (r"0\le x\le1", r"1\ge x\ge0"),
     (r"x \ge 2", r"2 \le x"),
+    (r"2x>4", r"x>2"),
+    (r"x^2\ge0", r"(x-1)^2\ge0"),
     (r"\{1,2\}", r"\{2,1\}"),
     (r"\{1,2\}", r"1,2"),
     (r"1,2", r"2,1"),
@@ -100,6 +106,8 @@ WA_CASES = [
     (r"x+1", r"x+2"),
     (r"\sin x", r"\cos x"),
     (r"x=1", r"x=2"),
+    (r"x^2-1=0", r"x=1"),
+    (r"x/x=1", r"x=x"),
     (r"x>2", r"x \ge 2"),
     (r"\{1,2\}", r"\{1,3\}"),
     (r"\{1,2\}", r"\{1,2,3\}"),
@@ -142,6 +150,30 @@ def test_equivalence_state_is_separate_from_judge_status(monkeypatch):
     assert judge("x^2", "x*x").status == "judged"
     monkeypatch.setattr(equivalence, "_compare_items", lambda *_args: PENDING)
     assert compare_parsed(equal, same)[0] == UNDECIDED
+
+
+@pytest.mark.parametrize(
+    "expression",
+    [r"x^2-1", r"\sqrt{x^2}", r"\ln(x^2)", r"x^2=1", r"x\ge2", r"\{1,2\}"],
+)
+def test_judge_is_reflexive(expression):
+    result = judge(expression, expression)
+    assert result.status == "judged"
+    assert result.verdict == AC
+
+
+@pytest.mark.parametrize(
+    "left,right",
+    [
+        (r"x^2-1", r"(x-1)(x+1)"),
+        (r"x^2=1", r"(x-1)(x+1)=0"),
+        (r"2x>4", r"x>2"),
+        (r"\{1,2\}", r"2,1"),
+        (r"x=1", r"x=2"),
+    ],
+)
+def test_judgment_is_symmetric(left, right):
+    assert verdict(left, right) == verdict(right, left)
 
 
 # --------------------------------------------------------------------------
@@ -218,6 +250,23 @@ def test_assume_positive_helps_log():
     submitted = r"2\ln x"
     assert judge(model, submitted, {"assume_positive": True}).verdict == AC
     assert judge(model, submitted, {"assume_positive": False}).verdict == WA
+
+
+def test_assumption_context_supports_nonnegative_and_integer_symbols():
+    assert judge(
+        r"\sqrt{x^2}", r"x", {"assume_nonnegative": True}
+    ).verdict == AC
+    assert judge(
+        r"x^2=4", r"x=2", {"assume_integer": True, "assume_positive": True}
+    ).verdict == AC
+    assert judge(r"x^2=4", r"x=2").verdict == WA
+
+
+def test_real_domain_mismatch_is_certified_without_invalid_samples():
+    result = judge(r"\sqrt{x}", r"\sqrt{-x}")
+    assert result.status == "judged"
+    assert result.verdict == WA
+    assert result.reason == "domain_mismatch"
 
 
 def test_verdicts_are_only_three_values():

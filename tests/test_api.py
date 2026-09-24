@@ -170,6 +170,15 @@ def test_problem_error_does_not_consume_attempt(app_client, host, solver, monkey
     assert unavailable.json()["verdict"] is None
     assert unavailable.json()["remaining_submissions"] == 1
 
+    invalid_input = solver.post(
+        "/api/solve/submissions",
+        json={"problem_id": problem["id"], "answer_latex": r"\text{unknown}"},
+    )
+    assert invalid_input.status_code == 201
+    assert invalid_input.json()["status"] == "input_error"
+    assert invalid_input.json()["verdict"] is None
+    assert invalid_input.json()["remaining_submissions"] == 1
+
     judged = solver.post(
         "/api/solve/submissions",
         json={"problem_id": problem["id"], "answer_latex": r"x^2-1"},

@@ -404,7 +404,22 @@ def _piecewise_is_zero(expr, depth: int = 0) -> bool:
     return True
 
 
-def decide_zero(expr) -> str:
+def _conditions_hold(conditions, substitutions: dict) -> bool:
+    for condition in conditions or ():
+        try:
+            value = condition.subs(substitutions, simultaneous=True)
+            value = _safe(sp.simplify, value)
+        except Exception:
+            return False
+        if value is S.true or value is True:
+            continue
+        if value is S.false or value is False:
+            return False
+        return False
+    return True
+
+
+def decide_zero(expr, domain_conditions=()) -> str:
     """``expr`` が恒等的に 0 かどうかを厳密に判定する。
 
     Returns:
@@ -471,13 +486,17 @@ def decide_zero(expr) -> str:
             return NONZERO
         return UNKNOWN
 
-    if _sample_nonzero(expr, sorted(free, key=lambda s: s.name)):
+    if _sample_nonzero(
+        expr, sorted(free, key=lambda s: s.name), domain_conditions
+    ):
         return NONZERO
     return UNKNOWN
 
 
-def _sample_nonzero(expr, symbols: list) -> bool:
+def _sample_nonzero(expr, symbols: list, domain_conditions=()) -> bool:
     for subs in substitution_candidates(symbols):
+        if not _conditions_hold(domain_conditions, subs):
+            continue
         try:
             value = expr.subs(subs, simultaneous=True)
         except Exception:
@@ -502,7 +521,7 @@ def _sample_nonzero(expr, symbols: list) -> bool:
     return False
 
 
-def prove_equal(a, b) -> str:
+def prove_equal(a, b, domain_conditions=()) -> str:
     """``a`` と ``b`` が厳密に等しいかを判定する。"""
     if a is None or b is None:
         return UNKNOWN
@@ -510,4 +529,4 @@ def prove_equal(a, b) -> str:
         diff = sp.Add(a, sp.Mul(S(-1), b))
     except Exception:
         return UNKNOWN
-    return decide_zero(diff)
+    return decide_zero(diff, domain_conditions=domain_conditions)

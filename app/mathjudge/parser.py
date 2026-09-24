@@ -53,6 +53,10 @@ class ParseOptions:
     assume_real: bool = True
     #: 変数に「正」の仮定を付ける (assume_real より強い)
     assume_positive: bool = False
+    #: 変数に「0 以上」の仮定を付ける
+    assume_nonnegative: bool = False
+    #: 変数に「整数」の仮定を付ける
+    assume_integer: bool = False
 
     @classmethod
     def from_dict(cls, data: dict | None) -> ParseOptions:
@@ -398,6 +402,7 @@ class ParsedAnswer:
     kind: str
     items: list = field(default_factory=list)
     source: str = ""
+    domain_conditions: list = field(default_factory=list)
 
     @property
     def single(self):
@@ -416,6 +421,7 @@ class LatexParser:
         self.opt = options
         self.depth = 0
         self.abs_depth = 0
+        self.domain_conditions: list = []
         #: いま集合を読んでよい位置か (文の先頭のみ True)
         self._set_ok = False
 
@@ -460,11 +466,16 @@ class LatexParser:
 
     # -- シンボル生成 ------------------------------------------------------
     def symbol(self, name: str) -> sp.Symbol:
+        assumptions = {}
+        if self.opt.assume_real or self.opt.assume_positive or self.opt.assume_nonnegative or self.opt.assume_integer:
+            assumptions["real"] = True
         if self.opt.assume_positive:
-            return sp.Symbol(name, positive=True)
-        if self.opt.assume_real:
-            return sp.Symbol(name, real=True)
-        return sp.Symbol(name)
+            assumptions["positive"] = True
+        elif self.opt.assume_nonnegative:
+            assumptions["nonnegative"] = True
+        if self.opt.assume_integer:
+            assumptions["integer"] = True
+        return sp.Symbol(name, **assumptions)
 
     # -- トップレベル ------------------------------------------------------
     def parse_answer(self) -> ParsedAnswer:
@@ -603,7 +614,11 @@ class LatexParser:
                     tok.kind == "command" and tok.value in DIVIDE_OPS
                 ):
                     self.advance()
-                    node = sp.Mul(node, safe_pow(self.parse_unary(), sp.Integer(-1)))
+                    denominator = self.parse_unary()
+                    self.domain_conditions.append(
+                        sp.Ne(denominator, sp.S.Zero, evaluate=False)
+                    )
+                    node = sp.Mul(node, safe_pow(denominator, sp.Integer(-1)))
                 elif self._starts_atom(tok):
                     # 暗黙の掛け算 (2x, x y, 2\pi, ...)
                     node = sp.Mul(node, self.parse_unary())
@@ -628,6 +643,19 @@ class LatexParser:
                 return sp.Mul(base, sp.pi, sp.Pow(sp.Integer(180), sp.Integer(-1)))
             position = self.cur.pos
             exponent = self.parse_unary()
+            if exponent.is_negative is True:
+                self.domain_conditions.append(
+                    sp.Ne(base, sp.S.Zero, evaluate=False)
+                )
+            if (
+                self.opt.assume_real
+                and base.free_symbols
+                and exponent.is_Rational
+                and int(exponent.q) % 2 == 0
+            ):
+                self.domain_conditions.append(
+                    sp.Ge(base, sp.S.Zero, evaluate=False)
+                )
             return safe_pow(base, exponent, position)
         return base
 
@@ -849,6 +877,7 @@ class LatexParser:
             self.advance()
             num = self.parse_group(single_char=True)
             den = self.parse_group(single_char=True)
+            self.domain_conditions.append(sp.Ne(den, sp.S.Zero, evaluate=False))
             return sp.Mul(num, safe_pow(den, sp.Integer(-1), tok.pos))
 
         if cmd == r"\sqrt":
@@ -859,6 +888,10 @@ class LatexParser:
                 self.expect("punct", "]")
             radicand = self.parse_group()
             if index is None:
+                if self.opt.assume_real and radicand.free_symbols:
+                    self.domain_conditions.append(
+                        sp.Ge(radicand, sp.S.Zero, evaluate=False)
+                    )
                 return sp.sqrt(radicand)
             if index.is_Integer and abs(int(index)) > MAX_EXPONENT:
                 raise InputTooLargeError(
@@ -874,6 +907,16 @@ class LatexParser:
                 and int(index) % 2 == 1
             ):
                 return sp.real_root(radicand, int(index))
+            if (
+                self.opt.assume_real
+                and radicand.free_symbols
+                and index.is_Integer
+                and int(index) > 0
+                and int(index) % 2 == 0
+            ):
+                self.domain_conditions.append(
+                    sp.Ge(radicand, sp.S.Zero, evaluate=False)
+                )
             return safe_pow(radicand, safe_pow(index, sp.Integer(-1), tok.pos), tok.pos)
 
         if cmd in (r"\binom", r"\dbinom", r"\tbinom"):
@@ -929,6 +972,10 @@ class LatexParser:
                 base = sp.Integer(10) if self.opt.log_base == "10" else None
             exponent = self._read_function_exponent()
             arg = self.parse_function_argument()
+            if self.opt.assume_real and arg.free_symbols:
+                self.domain_conditions.append(
+                    sp.Gt(arg, sp.S.Zero, evaluate=False)
+                )
             value = sp.log(arg) if base is None else sp.log(arg, base)
             if exponent is not None:
                 value = safe_pow(value, exponent, tok.pos)
@@ -943,9 +990,38 @@ class LatexParser:
                     raise UnsupportedLatexError(
                         f"{cmd} の逆関数表記には対応していません。", position=tok.pos
                     )
-                return inverse(self.parse_function_argument())
+                argument = self.parse_function_argument()
+                if (
+                    self.opt.assume_real
+                    and argument.free_symbols
+                    and cmd in (r"\arcsin", r"\arccos")
+                ):
+                    self.domain_conditions.extend(
+                        (
+                            sp.Ge(argument, -1, evaluate=False),
+                            sp.Le(argument, 1, evaluate=False),
+                        )
+                    )
+                return inverse(argument)
             func = UNARY_FUNCTIONS[cmd]
-            value = func(self.parse_function_argument())
+            argument = self.parse_function_argument()
+            if self.opt.assume_real and argument.free_symbols:
+                if cmd in (r"\tan", r"\sec"):
+                    self.domain_conditions.append(
+                        sp.Ne(sp.cos(argument), 0, evaluate=False)
+                    )
+                elif cmd in (r"\cot", r"\csc"):
+                    self.domain_conditions.append(
+                        sp.Ne(sp.sin(argument), 0, evaluate=False)
+                    )
+                elif cmd in (r"\arcsin", r"\arccos"):
+                    self.domain_conditions.extend(
+                        (
+                            sp.Ge(argument, -1, evaluate=False),
+                            sp.Le(argument, 1, evaluate=False),
+                        )
+                    )
+            value = func(argument)
             if exponent is not None:
                 value = safe_pow(value, exponent, tok.pos)
             return value
@@ -1390,11 +1466,23 @@ def _merge_plus_minus(first: ParsedAnswer, second: ParsedAnswer) -> ParsedAnswer
             raise UnsupportedLatexError("複号を解釈できません。")
         elements = _dedup_items(_set_elements(first) + _set_elements(second))
         value = sp.FiniteSet(*elements) if elements else sp.S.EmptySet
-        return ParsedAnswer("set", [value])
+        return ParsedAnswer(
+            "set",
+            [value],
+            domain_conditions=first.domain_conditions + second.domain_conditions,
+        )
     items = _dedup_items(list(first.items) + list(second.items))
     if len(items) == 1:
-        return ParsedAnswer(first.kind, items)
-    return ParsedAnswer("list", items)
+        return ParsedAnswer(
+            first.kind,
+            items,
+            domain_conditions=first.domain_conditions + second.domain_conditions,
+        )
+    return ParsedAnswer(
+        "list",
+        items,
+        domain_conditions=first.domain_conditions + second.domain_conditions,
+    )
 
 
 def parse_latex_answer(source: str, options: ParseOptions | None = None) -> ParsedAnswer:
@@ -1413,7 +1501,9 @@ def parse_latex_answer(source: str, options: ParseOptions | None = None) -> Pars
         second = LatexParser(_apply_plus_minus(tokens, -1), options).parse_answer()
         answer = _merge_plus_minus(first, second)
     else:
-        answer = LatexParser(tokens, options).parse_answer()
+        parser = LatexParser(tokens, options)
+        answer = parser.parse_answer()
+        answer.domain_conditions = list(parser.domain_conditions)
     answer.source = source
     for item in answer.items:
         _check_no_float(item)
