@@ -6,13 +6,14 @@ const backdrop = document.getElementById("drawer-backdrop");
 const mobileLayout = window.matchMedia("(max-width: 767px)");
 
 function setDrawer(open) {
+  const wasOpen = body.classList.contains("drawer-open");
   const visible = Boolean(open && mobileLayout.matches);
   body.classList.toggle("drawer-open", visible);
   drawerButton.setAttribute("aria-expanded", String(visible));
   if (visible) {
     const firstProblem = sidebar.querySelector(".item");
     if (firstProblem) firstProblem.focus();
-  } else if (document.activeElement && sidebar.contains(document.activeElement)) {
+  } else if (wasOpen && mobileLayout.matches) {
     drawerButton.focus();
   }
 }
