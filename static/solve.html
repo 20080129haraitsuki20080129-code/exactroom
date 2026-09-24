@@ -8,94 +8,109 @@
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
 <link rel="manifest" href="/static/manifest.json">
-<meta name="theme-color" content="#2f6df6">
+<meta name="theme-color" content="#f7f8fa">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="ExactRoom">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap">
 <link rel="stylesheet" href="/static/css/app.css">
+<link rel="stylesheet" href="/static/css/solve.css">
 <script src="/static/js/config.js"></script>
 </head>
-<body>
+<body class="solve-page">
 <a class="skip-link" href="#main">本文へ移動</a>
-<header class="topbar">
+<header class="topbar solve-topbar">
   <a class="brand" href="index.html">ExactRoom</a>
-  <span class="meta" id="room-meta"></span>
+  <span class="meta room-meta" id="room-meta"></span>
+  <button type="button" class="mobile-problem-trigger" id="problem-drawer-toggle" aria-controls="problem-sidebar" aria-expanded="false">問題一覧</button>
   <span class="spacer"></span>
-  <span class="meta" id="user-meta"></span>
-  <button type="button" class="small" id="leave">退出</button>
-  <div class="textsize" role="group" aria-label="文字サイズ">
-    <span class="textsize-label" aria-hidden="true">文字</span>
-    <button type="button" id="textsize-normal" aria-pressed="true" title="文字サイズ 標準">標準</button>
-    <button type="button" id="textsize-large" aria-pressed="false" title="文字サイズ 大">大</button>
-    <button type="button" id="textsize-xlarge" aria-pressed="false" title="文字サイズ 特大">特大</button>
-  </div>
-</header>
-
-<main id="main" tabindex="-1">
-  <div class="ok-box" id="recovery-note" role="status"></div>
-  <div class="error-box" id="global-error" role="alert"></div>
-
-  <div class="grid-2">
-    <div class="card">
-      <h2>問題一覧</h2>
-      <ul class="list" id="problem-list"></ul>
-      <p class="small muted" id="problem-empty" hidden>まだ公開されている問題がありません。</p>
-      <div class="row" style="margin-top:12px">
-        <button type="button" class="small" id="reload">更新</button>
+  <details class="topbar-popover settings-popover">
+    <summary aria-label="表示設定">Aa</summary>
+    <div class="popover-panel settings-panel">
+      <strong>表示設定</strong>
+      <span class="settings-label">文字サイズ</span>
+      <div class="textsize" role="group" aria-label="文字サイズ">
+        <button type="button" id="textsize-normal" aria-pressed="true" title="文字サイズ 標準">標準</button>
+        <button type="button" id="textsize-large" aria-pressed="false" title="文字サイズ 大">大</button>
+        <button type="button" id="textsize-xlarge" aria-pressed="false" title="文字サイズ 特大">特大</button>
       </div>
+      <label class="settings-label" for="theme-choice">テーマ</label>
+      <select id="theme-choice" class="theme-choice">
+        <option value="system">システム</option>
+        <option value="light">ライト</option>
+        <option value="dark">ダーク</option>
+      </select>
     </div>
-
-    <div>
-      <div class="card" id="problem-card" hidden>
-        <h2 id="problem-title"></h2>
-        <div class="math-preview" id="problem-statement"></div>
-        <p class="small" id="problem-note"></p>
-        <p class="small muted" id="parse-hints"></p>
-
-        <h3>解答を入力</h3>
-        <div id="answer-input"></div>
-        <div class="symbol-pad" id="symbol-pad"></div>
-
-        <h3>入力内容 (TeX)</h3>
-        <code class="mono small" id="tex-echo"></code>
-
-        <div class="row" style="margin-top:16px">
-          <button type="button" class="primary" id="submit">提出する</button>
-          <button type="button" class="small" id="clear">クリア</button>
-          <span class="small muted" id="submit-status"></span>
+  </details>
+  <details class="topbar-popover more-popover">
+    <summary aria-label="その他の操作">⋯</summary>
+    <div class="popover-panel more-panel">
+      <span class="user-name" id="user-meta"></span>
+      <a href="https://github.com/20080129haraitsuki20080129-code/exactroom/blob/main/README.md#解答者">使い方（README）</a>
+      <a href="https://x.com/oVZb8MNkQJ4Dgeb" target="_blank" rel="noopener noreferrer">不具合を報告</a>
+      <button type="button" class="danger-action" id="leave">退出</button>
+    </div>
+  </details>
+</header>
+<div class="recovery-region" id="recovery-note" role="status" aria-live="polite"></div>
+<div class="error-region" id="global-error" role="alert" aria-live="assertive"></div>
+<button class="drawer-backdrop" id="drawer-backdrop" type="button" aria-label="問題一覧を閉じる" tabindex="-1"></button>
+<main id="main" class="solve-shell" tabindex="-1">
+  <aside class="problem-sidebar" id="problem-sidebar" aria-label="問題一覧">
+    <div class="sidebar-heading">
+      <div><span class="eyebrow">ROOM</span><h2>問題</h2></div>
+      <button type="button" class="icon-button" id="reload" aria-label="問題一覧を更新" title="更新">↻</button>
+    </div>
+    <ul class="problem-list" id="problem-list" aria-label="問題"></ul>
+    <p class="sidebar-empty" id="problem-empty" hidden>まだ公開されている問題がありません。</p>
+  </aside>
+  <section class="workspace" aria-label="解答ワークスペース">
+    <div id="empty-card" class="empty-state">
+      <span class="empty-mark" aria-hidden="true">∑</span>
+      <h1>問題を選択してください</h1>
+      <p>問題一覧から解答する問題を選べます。</p>
+    </div>
+    <article id="problem-card" class="problem-workspace" hidden>
+      <header class="problem-header">
+        <span class="problem-kicker">PROBLEM</span>
+        <h1 id="problem-title"></h1>
+      </header>
+      <div class="problem-statement" id="problem-statement"></div>
+      <p class="problem-note" id="problem-note"></p>
+      <p class="parse-hints" id="parse-hints"></p>
+      <section class="answer-section" aria-labelledby="answer-heading">
+        <div class="answer-heading-row">
+          <h2 id="answer-heading">解答</h2>
+          <span class="answer-hint">数式を入力して提出してください</span>
         </div>
-
-        <div id="result-area"></div>
-
-        <h3>自分の提出履歴</h3>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr><th>時刻</th><th>判定</th><th>提出した答案</th></tr>
-            </thead>
+        <div class="answer-surface" id="answer-input" aria-label="解答入力"></div>
+        <div class="symbol-pad" id="symbol-pad" aria-label="数式記号"></div>
+        <div class="answer-footer">
+          <div class="tex-echo"><span>TeX</span><code class="mono small" id="tex-echo"></code></div>
+          <div class="submit-row">
+            <span class="submit-status" id="submit-status" role="status" aria-live="polite"></span>
+            <button type="button" class="small clear-button" id="clear">クリア</button>
+            <button type="button" class="primary submit-button" id="submit">提出 <span aria-hidden="true">→</span></button>
+          </div>
+        </div>
+        <div id="result-area" class="result-area" aria-live="polite" aria-atomic="true"></div>
+        <p class="keyboard-hint">ショートカット <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>Enter</kbd></p>
+      </section>
+      <details class="history-section">
+        <summary><span>提出履歴</span><span class="history-count" id="history-count"></span></summary>
+        <div class="history-content table-wrap">
+          <table aria-label="提出履歴">
+            <thead><tr><th scope="col">時刻</th><th scope="col">判定</th><th scope="col">提出した答案</th></tr></thead>
             <tbody id="history-body"></tbody>
           </table>
         </div>
-      </div>
-
-      <div class="card" id="empty-card">
-        <p class="muted">左の一覧から問題を選んでください。</p>
-      </div>
-    </div>
-  </div>
+      </details>
+    </article>
+  </section>
 </main>
-
-
-<footer class="sitefoot">
-  <p>
-    困ったとき・不具合の連絡は X の
-    <a href="https://x.com/oVZb8MNkQJ4Dgeb" target="_blank" rel="noopener noreferrer">@oVZb8MNkQJ4Dgeb</a>
-    まで DM してください。
-  </p>
-</footer>
-
+<footer class="sitefoot solve-footer"><p>困ったとき・不具合の連絡は <a href="https://x.com/oVZb8MNkQJ4Dgeb" target="_blank" rel="noopener noreferrer">X の @oVZb8MNkQJ4Dgeb</a> まで。</p></footer>
 <script type="module" src="/static/js/solve.js"></script>
+<script type="module" src="/static/js/solve-ui.js"></script>
 </body>
 </html>
